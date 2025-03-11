@@ -36,13 +36,13 @@ public:
     }
 
     void setCellState(const std::string& pos, CellState state) {
-        if (board.contains(pos)) {
+        if (board.find(pos) != board.end()) {
             board[pos].state = state;
         }
     }
 
     [[nodiscard]] CellState getCellState(const std::string& pos) const {
-        if (board.contains(pos)) {
+        if (board.find(pos) != board.end()) {
             return board.at(pos).state;
         }
         return CellState::EMPTY;
@@ -50,7 +50,7 @@ public:
 
     // Check if a position is valid (i.e., is on the board)
     [[nodiscard]] bool isValidPosition(const std::string& pos) const {
-        return board.contains(pos);
+        return board.find(pos) != board.end();
     }
 
     // Generate all legal moves for a player
@@ -120,12 +120,62 @@ private:
 
     // Generate inline moves for 2 marbles
     void generateDoubleInlineMoves(CellState player, std::vector<std::string>& legalMoves) const {
-       // TODO
+       for (const auto& [pos, cell] : board) {
+        if (cell.state == player) {
+            for (const auto& dir : directions) {
+                std::string nextPos = getAdjacentPosition(pos, dir);
+                std::string nextNextPos = getAdjacentPosition(pos, dir);
+                std::string pushPos = getAdjacentPosition(pos, dir);
+
+                if(!isValidPosition(nextPos) || !isValidPosition(nextNextPos)) continue;
+
+                CellState nextState = getCellState(nextPos);
+                CellState nextNextState = getCellState(nextNextPos);
+
+                //Case 1: Empty space after two marbles
+                if (nextState == player && nextNextState == CellState::EMPTY) {
+                    legalMoves.push_back("Inline Move: " + pos + " & " + nextPos + " to " + nextNextPos + ", Direction: " + dir);
+                }
+
+                //Case 2: Pushing an oppenents marble
+                if (nextState == player && nextNextState != player && nextNextState != CellState::EMPTY) {
+                    legalMoves.push_back("Inline Move: " + pos + " & " + nextPos + " to " + nextNextPos + ", Direction: " + dir);
+                }
+            }
+        }
+       }
     }
 
     // Generate inline moves for 3 marbles
     void generateTripleInlineMoves(CellState player, std::vector<std::string>& legalMoves) const {
-        // TODO
+        for (const auto& [pos, cell] : board) {
+            if (cell.state == player) {
+                for (const auto& dir : directions) {
+                    std::string nextPos = getAdjacentPosition(pos, dir);
+                    std::string nextNextPos = getAdjacentPosition(nextPos, dir);
+                    std::string nextNextNextPos = getAdjacentPosition(nextNextPos, dir);
+                    std::string pushPos = getAdjacentPosition(nextNextNextPos, dir);
+    
+                    if (!isValidPosition(nextPos) || !isValidPosition(nextNextPos) || !isValidPosition(nextNextNextPos)) continue;
+    
+                    CellState nextState = getCellState(nextPos);
+                    CellState nextNextState = getCellState(nextNextPos);
+                    CellState nextNextNextState = getCellState(nextNextNextPos);
+    
+                    // Case 1: Empty space after three marbles
+                    if (nextState == player && nextNextState == player && nextNextNextState == CellState::EMPTY) {
+                        legalMoves.push_back("Inline Move: " + pos + ", " + nextPos + " & " + nextNextPos + " to " + nextNextNextPos + ", Direction: " + dir);
+                    }
+    
+                    // Case 2: Pushing one or two opponent marbles
+                    if (nextState == player && nextNextState == player && nextNextNextState != player && nextNextNextState != CellState::EMPTY) {
+                        if (isValidPosition(pushPos) && getCellState(pushPos) == CellState::EMPTY) {
+                            legalMoves.push_back("Push Move: " + pos + ", " + nextPos + " & " + nextNextPos + " pushing " + nextNextNextPos + " to " + pushPos + ", Direction: " + dir);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     // Generate sidestep moves for 2 marbles
