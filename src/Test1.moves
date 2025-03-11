@@ -1,0 +1,21 @@
+Legal moves for Black:
+Inline: C5 to C6, Direction:E
+Inline: C5 to B5, Direction:SE
+Inline: C5 to B4, Direction:SW
+Inline: E4 to E3, Direction:W
+Inline: F8 to F9, Direction:E
+Inline: F8 to E8, Direction:SE
+Inline: H6 to I7, Direction:NE
+Inline: H6 to I6, Direction:NW
+Inline: H6 to H5, Direction:W
+Push Move: D5, E5 & F5 pushing G5 to H5, Direction: NW
+Push Move: E4, F5 & G6 pushing H7 to I8, Direction: NE
+Push Move: E4, E5 & E6 pushing E7 to E8, Direction: E
+Inline Move: E5, D5 & C5 to B5, Direction: SE
+Inline Move: E6, E5 & E4 to E3, Direction: W
+Inline Move: F6, G6 & H6 to I6, Direction: NW
+Inline Move: F6, F7 & F8 to F9, Direction: E
+Push Move: F7, F6 & F5 pushing F4 to F3, Direction: W
+Push Move: F7, E6 & D5 pushing C4 to B3, Direction: SW
+Push Move: G6, F6 & E6 pushing D6 to C6, Direction: SE
+Push Move: G6, F5 & E4 pushing D3 to C2, Direction: SW
