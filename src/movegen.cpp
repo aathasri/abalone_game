@@ -111,7 +111,7 @@ private:
                 for (const auto& dir : directions) {
                     if (std::string targetPos = getAdjacentPosition(pos, dir); isValidPosition(targetPos)
                         && getCellState(targetPos) == CellState::EMPTY) {
-                        legalMoves.push_back("Inline: " + pos + " to " + targetPos + ", Direction:" + dir);
+                        legalMoves.push_back("Inline Move: " + pos + " to " + targetPos + ", Direction:" + dir);
                     }
                 }
             }
@@ -124,22 +124,26 @@ private:
         if (cell.state == player) {
             for (const auto& dir : directions) {
                 std::string nextPos = getAdjacentPosition(pos, dir);
-                std::string nextNextPos = getAdjacentPosition(pos, dir);
-                std::string pushPos = getAdjacentPosition(pos, dir);
+                std::string nextNextPos = getAdjacentPosition(nextPos, dir);
+                std::string nextNextNextPos = getAdjacentPosition(nextNextPos, dir);
 
-                if(!isValidPosition(nextPos) || !isValidPosition(nextNextPos)) continue;
+                // if(!isValidPosition(nextPos) || !isValidPosition(nextNextPos)) continue;
 
                 CellState nextState = getCellState(nextPos);
                 CellState nextNextState = getCellState(nextNextPos);
 
+                // if(!isValidPosition(nextNextNextPos)) continue;
+                CellState nextNextNextState = getCellState(nextNextNextPos); 
+
                 //Case 1: Empty space after two marbles
                 if (nextState == player && nextNextState == CellState::EMPTY) {
-                    legalMoves.push_back("Inline Move: " + pos + " & " + nextPos + " to " + nextNextPos + ", Direction: " + dir);
+                    legalMoves.push_back("Double Inline Move: " + pos + " & " + nextPos + " to " + nextNextPos + ", Direction: " + dir);
                 }
 
+
                 //Case 2: Pushing an oppenents marble
-                if (nextState == player && nextNextState != player && nextNextState != CellState::EMPTY) {
-                    legalMoves.push_back("Inline Move: " + pos + " & " + nextPos + " to " + nextNextPos + ", Direction: " + dir);
+                else if (nextState == player && nextNextState != player && nextNextNextState == CellState::EMPTY) {
+                    legalMoves.push_back("Double Inline Push: " + pos + " & " + nextPos + " to " + nextNextPos + ", Direction: " + dir);
                 }
             }
         }
@@ -154,9 +158,8 @@ private:
                     std::string nextPos = getAdjacentPosition(pos, dir);
                     std::string nextNextPos = getAdjacentPosition(nextPos, dir);
                     std::string nextNextNextPos = getAdjacentPosition(nextNextPos, dir);
-                    std::string pushPos = getAdjacentPosition(nextNextNextPos, dir);
-    
-                    if (!isValidPosition(nextPos) || !isValidPosition(nextNextPos) || !isValidPosition(nextNextNextPos)) continue;
+                    std::string pushPos1 = getAdjacentPosition(nextNextNextPos, dir);
+                    std::string pushPos2 = getAdjacentPosition(pushPos1, dir);
     
                     CellState nextState = getCellState(nextPos);
                     CellState nextNextState = getCellState(nextNextPos);
@@ -164,13 +167,14 @@ private:
     
                     // Case 1: Empty space after three marbles
                     if (nextState == player && nextNextState == player && nextNextNextState == CellState::EMPTY) {
-                        legalMoves.push_back("Inline Move: " + pos + ", " + nextPos + " & " + nextNextPos + " to " + nextNextNextPos + ", Direction: " + dir);
+                        legalMoves.push_back("Triple Inline Move: " + pos + ", " + nextPos + " & " + nextNextPos + " to " + nextNextNextPos + ", Direction: " + dir);
                     }
     
                     // Case 2: Pushing one or two opponent marbles
                     if (nextState == player && nextNextState == player && nextNextNextState != player && nextNextNextState != CellState::EMPTY) {
-                        if (isValidPosition(pushPos) && getCellState(pushPos) == CellState::EMPTY) {
-                            legalMoves.push_back("Push Move: " + pos + ", " + nextPos + " & " + nextNextPos + " pushing " + nextNextNextPos + " to " + pushPos + ", Direction: " + dir);
+                        if (isValidPosition(pushPos1) && (getCellState(pushPos1) == CellState::EMPTY || getCellState(pushPos2) == CellState::EMPTY)) {
+                            legalMoves.push_back("Triple Inline Push: " + pos + ", " + nextPos + " & " + nextNextPos + " pushing " 
+                                + nextNextNextPos + " to " + pushPos1 + ", Direction: " + dir);
                         }
                     }
                 }
