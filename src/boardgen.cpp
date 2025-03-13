@@ -300,7 +300,16 @@ void simulateMoves(const std::string& boardFile, const std::string& movesFile, c
 
 
 int main() {
-    simulateMoves(R"(rizz)", R"(mr.beast)", "newboards.txt");
+    std::string boardFileName;
+    std::cout << "Enter name of file containing board:";
+    std::getline(std::cin, boardFileName);
+
+    std::string movesFileName;
+    std::cout << "Enter name of file containing moves:";
+    std::getline(std::cin, movesFileName);
+
+
+    simulateMoves(boardFileName, movesFileName, "newboards.txt");
     return 0;
 }
 

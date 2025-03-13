@@ -344,14 +344,18 @@ int main() {
     AbaloneBoard board;
     CellState playerToMove;
 
-    // parseFile(R"(Test1.input)", board, playerToMove);
-    parseFile(R"(C:\Users\16046\CLionProjects\untitled9\test4.input)", board, playerToMove);
+
+    std::string inputFileName;
+    std::cout << "Enter file name:";
+    std::getline(std::cin, inputFileName);
+
+    parseFile(inputFileName, board, playerToMove);
 
 
     // Generate all legal moves for the player to move
     std::vector<std::string> legalMoves = board.generateLegalMoves(playerToMove);
 
-    std::ofstream outFile(R"(test4.moves)");
+    std::ofstream outFile(R"(moves.txt)");
     if (!outFile) {
         std::cerr << "Error writing to file." << std::endl;
         return 1;
@@ -362,6 +366,6 @@ int main() {
     }
 
     outFile.close();
-    std::cout << "Legal moves written to file" << std::endl;
+    std::cout << "Legal moves written to moves.txt" << std::endl;
     return 0;
 }
