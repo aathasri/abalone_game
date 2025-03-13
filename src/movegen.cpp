@@ -5,20 +5,28 @@
 #include <vector>
 #include <sstream>
 
+/*
+ * Generate legal moves given a file containing a player's colour and a valid board
+ */
+
+// represents the states of a cell: black, empty, or white
 enum class CellState { EMPTY, BLACK, WHITE };
 
+// the 6 directions a marble can move in
 const std::vector<std::string> directions = {"NE", "NW", "E", "W", "SE", "SW"};
 
+// represents a cell in the game board
 struct Cell {
     CellState state = CellState::EMPTY;
 };
 
+// abalone game board consisting of cells
 class AbaloneBoard {
     std::map<std::string, Cell> board;
 
 public:
     AbaloneBoard() {
-        // create board with no marbles - all cells set to empty
+        // create board with no marbles - all cells set to empty initially
         std::string positions[] = {
             "I5", "I6", "I7", "I8", "I9",
             "H4", "H5", "H6", "H7", "H8", "H9",
@@ -35,12 +43,14 @@ public:
         }
     }
 
+    // change a cell's state
     void setCellState(const std::string& pos, CellState state) {
         if (board.find(pos) != board.end()) {
             board[pos].state = state;
         }
     }
 
+    // access a cell's state
     [[nodiscard]] CellState getCellState(const std::string& pos) const {
         if (board.find(pos) != board.end()) {
             return board.at(pos).state;
@@ -48,9 +58,22 @@ public:
         return CellState::EMPTY;
     }
 
-    // Check if a position is valid (i.e., is on the board)
-    [[nodiscard]] bool isValidPosition(const std::string& pos) const {
-        return board.find(pos) != board.end();
+    // check if a position is valid (i.e., is on the board)
+    [[nodiscard]] static bool isValidPosition(const std::string& pos) {
+        char col = pos[0];
+        int row = pos[1] - '0';
+
+        // Ensure the position is within the valid row-column bounds
+        return (col >= 'A' && col <= 'I') &&
+               ((col == 'A' && row >= 1 && row <= 5) ||
+                (col == 'B' && row >= 1 && row <= 6) ||
+                (col == 'C' && row >= 1 && row <= 7) ||
+                (col == 'D' && row >= 1 && row <= 8) ||
+                (col == 'E' && row >= 1 && row <= 9) ||
+                (col == 'F' && row >= 2 && row <= 9) ||
+                (col == 'G' && row >= 3 && row <= 9) ||
+                (col == 'H' && row >= 4 && row <= 9) ||
+                (col == 'I' && row >= 5 && row <= 9));
     }
 
     // Generate all legal moves for a player
@@ -75,35 +98,52 @@ public:
         return legalMoves;
     }
 
-private:
+
+
+
     // Helper function to get the adjacent position in a given direction
     static std::string getAdjacentPosition(const std::string& pos, const std::string& dir) {
         const char col = pos[0];
         const int row = pos[1] - '0';
 
+        // Not sure if these are necessary since we validate position elsewhere
+        // Keep them for now just in case
+
+        // For each direction, check the movement and ensure the new position is within bounds
+        std::string adjPos;
+
         if (dir == "NE") {
-            return std::string(1, col + 1) + std::to_string(row + 1); // G6 from F5
+            if (col < 'I' && row < 9) {
+                adjPos = std::string(1, col + 1) + std::to_string(row + 1);
+            }
+        } else if (dir == "E") {
+            if (row < 9) {
+                adjPos = std::string(1, col) + std::to_string(row + 1);
+            }
+        } else if (dir == "NW") {
+            if (col < 'I' && row > 1) {
+                adjPos = std::string(1, col + 1) + std::to_string(row);
+            }
+        } else if (dir == "SE") {
+            if (col > 'A' && row < 9) {
+                adjPos = std::string(1, col - 1) + std::to_string(row);
+            }
+        } else if (dir == "W") {
+            if (row > 1) {
+                adjPos = std::string(1, col) + std::to_string(row - 1);
+            }
+        } else if (dir == "SW") {
+            if (col > 'A' && row > 1) {
+                adjPos = std::string(1, col - 1) + std::to_string(row - 1);
+            }
         }
-        if (dir == "E") {
-            return std::string(1, col) + std::to_string(row + 1); // G5 from F5
-        }
-        if (dir == "NW") {
-            return std::string(1, col + 1) + std::to_string(row); // F6 from F5
-        }
-        if (dir == "SE") {
-            return std::string(1, col - 1) + std::to_string(row); // F4 from F5
-        }
-        if (dir == "W") {
-            return std::string(1, col) + std::to_string(row - 1); // E5 from F5
-        }
-        if (dir == "SW") {
-            return std::string(1, col - 1) + std::to_string(row - 1); // E4 from F5
-        }
-        return "";
+
+        // If the adjacent position is valid, return it, otherwise return an empty string
+        return adjPos.empty() || !isValidPosition(adjPos) ? "fortnite" : adjPos;
     }
 
     // Generate legal single marble moves
-    void generateSingleMarbleMoves(CellState player, std::vector<std::string>& legalMoves) const {
+    void generateSingleMarbleMoves(const CellState player, std::vector<std::string>& legalMoves) const {
         for (const auto& [pos, cell] : board) {
             if (cell.state == player) {
                 // for each direction, check if the resulting position contains a marble or is on the board
@@ -111,7 +151,8 @@ private:
                 for (const auto& dir : directions) {
                     if (std::string targetPos = getAdjacentPosition(pos, dir); isValidPosition(targetPos)
                         && getCellState(targetPos) == CellState::EMPTY) {
-                        legalMoves.push_back("Inline Move: " + pos + " to " + targetPos + ", Direction:" + dir);
+                        std::string move = "i" + pos + dir;
+                        legalMoves.push_back(move);
                     }
                 }
             }
@@ -119,71 +160,92 @@ private:
     }
 
     // Generate inline moves for 2 marbles
-    void generateDoubleInlineMoves(CellState player, std::vector<std::string>& legalMoves) const {
-       for (const auto& [pos, cell] : board) {
-        if (cell.state == player) {
-            for (const auto& dir : directions) {
-                std::string nextPos = getAdjacentPosition(pos, dir);
-                std::string nextNextPos = getAdjacentPosition(nextPos, dir);
-                std::string nextNextNextPos = getAdjacentPosition(nextNextPos, dir);
-
-                // if(!isValidPosition(nextPos) || !isValidPosition(nextNextPos)) continue;
-
-                CellState nextState = getCellState(nextPos);
-                CellState nextNextState = getCellState(nextNextPos);
-
-                // if(!isValidPosition(nextNextNextPos)) continue;
-                CellState nextNextNextState = getCellState(nextNextNextPos); 
-
-                //Case 1: Empty space after two marbles
-                if (nextState == player && nextNextState == CellState::EMPTY) {
-                    legalMoves.push_back("Double Inline Move: " + pos + " & " + nextPos + " to " + nextNextPos + ", Direction: " + dir);
-                }
-
-
-                //Case 2: Pushing an oppenents marble
-                else if (nextState == player && nextNextState != player && nextNextNextState == CellState::EMPTY) {
-                    legalMoves.push_back("Double Inline Push: " + pos + " & " + nextPos + " to " + nextNextPos + ", Direction: " + dir);
-                }
-            }
-        }
-       }
-    }
-
-    // Generate inline moves for 3 marbles
-    void generateTripleInlineMoves(CellState player, std::vector<std::string>& legalMoves) const {
+    void generateDoubleInlineMoves(const CellState player, std::vector<std::string>& legalMoves) const {
         for (const auto& [pos, cell] : board) {
             if (cell.state == player) {
                 for (const auto& dir : directions) {
                     std::string nextPos = getAdjacentPosition(pos, dir);
                     std::string nextNextPos = getAdjacentPosition(nextPos, dir);
                     std::string nextNextNextPos = getAdjacentPosition(nextNextPos, dir);
-                    std::string pushPos1 = getAdjacentPosition(nextNextNextPos, dir);
-                    std::string pushPos2 = getAdjacentPosition(pushPos1, dir);
-    
-                    CellState nextState = getCellState(nextPos);
-                    CellState nextNextState = getCellState(nextNextPos);
-                    CellState nextNextNextState = getCellState(nextNextNextPos);
-    
-                    // Case 1: Empty space after three marbles
-                    if (nextState == player && nextNextState == player && nextNextNextState == CellState::EMPTY) {
-                        legalMoves.push_back("Triple Inline Move: " + pos + ", " + nextPos + " & " + nextNextPos + " to " + nextNextNextPos + ", Direction: " + dir);
+
+
+                    // Validate all positions: They must be valid and not empty (if they are the destination)
+                    if (!isValidPosition(nextPos) || !isValidPosition(nextNextPos)) {
+                        continue; // Skip invalid positions
                     }
-    
-                    // Case 2: Pushing one or two opponent marbles
-                    if (nextState == player && nextNextState == player && nextNextNextState != player && nextNextNextState != CellState::EMPTY) {
-                        if (isValidPosition(pushPos1) && (getCellState(pushPos1) == CellState::EMPTY || getCellState(pushPos2) == CellState::EMPTY)) {
-                            legalMoves.push_back("Triple Inline Push: " + pos + ", " + nextPos + " & " + nextNextPos + " pushing " 
-                                + nextNextNextPos + " to " + pushPos1 + ", Direction: " + dir);
+                        const CellState nextState = getCellState(nextPos);
+                        const CellState nextNextState = getCellState(nextNextPos);
+                        const CellState nextNextNextState = getCellState(nextNextNextPos);
+
+                        // Case 1: Empty space after two marbles (Double Inline Move)
+                        if (nextState == player && nextNextState == CellState::EMPTY) {
+                            legalMoves.push_back("i" + pos + dir);
+                        }
+                        // Case 2: Pushing an opponent's marble (Double Inline Push)
+                        else if (nextState == player && nextNextState != player && nextNextNextState == CellState::EMPTY) {
+                            legalMoves.push_back("i" + pos + dir);
                         }
                     }
                 }
             }
         }
-    }
+
+
+    // Generate inline moves for 3 marbles
+    void generateTripleInlineMoves(const CellState player, std::vector<std::string>& legalMoves) const {
+        for (const auto& [pos, cell] : board) {
+            if (cell.state == player) {
+                for (const auto& dir : directions) {
+                    std::string nextPos = getAdjacentPosition(pos, dir);
+                    std::string nextNextPos = getAdjacentPosition(nextPos, dir);
+                    std::string nextNextNextPos = getAdjacentPosition(nextNextPos, dir);
+                    std::string nextNextNextNextPos = getAdjacentPosition(nextNextNextPos, dir);
+                    std::string nextNextNextNextNextPos = getAdjacentPosition(nextNextNextNextPos, dir);
+
+                    if (!isValidPosition(nextPos) || !isValidPosition(nextNextPos) || !isValidPosition(nextNextNextPos)) {
+                        continue; // Skip invalid positions
+                    }
+
+                    std::string pushPos1 = getAdjacentPosition(nextNextNextPos, dir);
+                    std::string pushPos2 = getAdjacentPosition(pushPos1, dir);
+
+                    const CellState nextState = getCellState(nextPos);
+                    const CellState nextNextState = getCellState(nextNextPos);
+
+                    // skip if either of the two marbles in front belong to other player
+                    if (nextState != player || nextNextState != player) {
+                        continue;
+                    }
+
+
+                    const CellState nextNextNextState = getCellState(nextNextNextPos);
+                    const CellState nextNextNextNextState = getCellState(nextNextNextNextPos);
+                    const CellState nextNextNextNextNextState = getCellState(nextNextNextNextNextPos);
+
+                    // skip if we would push our own marble
+                    if (nextNextNextState == player) {
+                        continue;
+                    }
+
+                    // skip if we are moving off the board OR if one of our marbles is blocking
+                    if (nextNextNextState != CellState::EMPTY) {
+                        if (nextNextNextNextState == player) {
+                            continue;
+                        }
+                        if (nextNextNextNextState != CellState::EMPTY) {
+                            if (nextNextNextNextNextState == player) {
+                                continue;
+                            }
+                        }
+                    }
+                    legalMoves.push_back("i" + pos + dir);
+                    }
+                }
+            }
+        }
 
     // Generate sidestep moves for 2 marbles
-    void generateDoubleSidestepMoves(CellState player, std::vector<std::string>& legalMoves) const {
+    void generateDoubleSidestepMoves(const CellState player, std::vector<std::string>& legalMoves) const {
         for (const auto& [pos, cell] : board) {
             if (cell.state == player) {
                 // check all 6 directions
@@ -212,9 +274,7 @@ private:
                                 && isValidPosition(target2) &&
                               getCellState(target1) == CellState::EMPTY &&
                               getCellState(target2) == CellState::EMPTY) {
-
-                                legalMoves.push_back("Sidestep: " + pos + " and " + adjacentPos +
-                                                     " -> " + target1 + " and " + target2 + ", Direction:" + dir);
+                                legalMoves.push_back("s" + pos + adjacentPos + sidestepDir);
                                 }
                         }
                     }
@@ -245,9 +305,7 @@ private:
                                     getCellState(target1) == CellState::EMPTY &&
                                     getCellState(target2) == CellState::EMPTY &&
                                     getCellState(target3) == CellState::EMPTY) {
-
-                                    legalMoves.push_back("Sidestep: " + pos + ", " + pos2 + ", " + pos3 + " to " +
-                                                         target1 + ", " + target2 + ", " + target3 + ", Direction:" + dir);
+                                    legalMoves.push_back("s" + pos + pos3 + sideDir);
                                     }
                             }
                         }
@@ -256,7 +314,6 @@ private:
             }
         }
     }
-
 };
 
 // Parse the file and initialize the board
@@ -286,28 +343,23 @@ int main() {
     AbaloneBoard board;
     CellState playerToMove;
 
-    parseFile(R"(Test1.input)", board, playerToMove);
+    // parseFile(R"(Test1.input)", board, playerToMove);
+    parseFile(R"(C:\Users\16046\CLionProjects\untitled9\test3.input)", board, playerToMove);
 
     // Generate all legal moves for the player to move
     std::vector<std::string> legalMoves = board.generateLegalMoves(playerToMove);
 
-    // Write the legal moves to moves.txt
-    std::ofstream outFile(R"(Test1.moves)");
+    std::ofstream outFile(R"(chiHenthegoat)");
     if (!outFile) {
         std::cerr << "Error writing to file." << std::endl;
         return 1;
     }
 
-    outFile << "Legal moves for " << (playerToMove == CellState::BLACK ? "Black" : "White") << ":\n";
     for (const auto& move : legalMoves) {
         outFile << move << std::endl;
     }
 
     outFile.close();
-    std::cout << "Legal moves written to moves.txt" << std::endl;
-
-    // TODO: read moves from moves.txt, create resulting boards for each move
-
+    std::cout << "Legal moves written to file" << std::endl;
     return 0;
-
 }
