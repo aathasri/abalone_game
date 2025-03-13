@@ -113,29 +113,29 @@ public:
         std::string adjPos;
 
         if (dir == "NE") {
-            if (col < 'I' && row < 9) {
+            // if (col < 'I' && row < 9) {
                 adjPos = std::string(1, col + 1) + std::to_string(row + 1);
-            }
+            // }
         } else if (dir == "E") {
-            if (row < 9) {
+            // if (row < 9) {
                 adjPos = std::string(1, col) + std::to_string(row + 1);
-            }
+            // }
         } else if (dir == "NW") {
-            if (col < 'I' && row > 1) {
+            // if (col < 'I' && row > 1) {
                 adjPos = std::string(1, col + 1) + std::to_string(row);
-            }
+            // }
         } else if (dir == "SE") {
-            if (col > 'A' && row < 9) {
+            // if (col > 'A' && row < 9) {
                 adjPos = std::string(1, col - 1) + std::to_string(row);
-            }
+            // }
         } else if (dir == "W") {
-            if (row > 1) {
+            // if (row > 1) {
                 adjPos = std::string(1, col) + std::to_string(row - 1);
-            }
+            // }
         } else if (dir == "SW") {
-            if (col > 'A' && row > 1) {
+            // if (col > 'A' && row > 1) {
                 adjPos = std::string(1, col - 1) + std::to_string(row - 1);
-            }
+            // }
         }
 
         // If the adjacent position is valid, return it, otherwise return an empty string
@@ -294,7 +294,8 @@ public:
 
                     if (std::string pos3 = getAdjacentPosition(pos2, dir); isValidPosition(pos2) && isValidPosition(pos3) &&
                                                                            getCellState(pos2) == player && getCellState(pos3) == player) {
-
+                        // skip duplicates
+                        if (pos > pos3) continue;
                         // Determine possible sidestep directions
                         for (const auto& sideDir : directions) {
                             if (sideDir != dir && sideDir != getAdjacentPosition(dir, dir)) { // Ensure not inline
@@ -344,12 +345,13 @@ int main() {
     CellState playerToMove;
 
     // parseFile(R"(Test1.input)", board, playerToMove);
-    parseFile(R"(C:\Users\16046\CLionProjects\untitled9\test3.input)", board, playerToMove);
+    parseFile(R"(C:\Users\16046\CLionProjects\untitled9\test4.input)", board, playerToMove);
+
 
     // Generate all legal moves for the player to move
     std::vector<std::string> legalMoves = board.generateLegalMoves(playerToMove);
 
-    std::ofstream outFile(R"(chiHenthegoat)");
+    std::ofstream outFile(R"(test4.moves)");
     if (!outFile) {
         std::cerr << "Error writing to file." << std::endl;
         return 1;
