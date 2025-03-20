@@ -30,4 +30,4 @@ Makefile
 *.dSYM/
 
 # Ignore CLion IDEA settings
-.idea/
+.idea
