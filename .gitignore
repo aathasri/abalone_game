@@ -2,7 +2,6 @@
 *.out
 *.o
 *.obj
-*.exe
 *.dll
 *.so
 *.dylib
@@ -29,3 +28,6 @@ Makefile
 
 # Ignore debugging files
 *.dSYM/
+
+# Ignore CLion IDEA settings
+.idea/
