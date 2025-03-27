@@ -1,38 +1,57 @@
+#include "settings.h"
+#include "board.h"
+#include "ai.h"
+#include "timer.h"
+#include "move.h"
+#include "json.hpp"
 #include <iostream>
-#include <cstdlib>  // For system() function
 
-int main(int argc, char* argv[]) {
-    std::string movegenCmd;
-    std::string inputFile;
-    if (argc == 1) {
-        movegenCmd = "movegen Test1.input";
-        inputFile = "Test1.input";
-    } else if (argc == 2) {
-        inputFile = argv[1];
-        movegenCmd = "movegen " + inputFile;
-    } else { // Check for correct number of arguments
-        movegenCmd = "movegen " + inputFile;
-        std::cerr << "Usage: " << argv[0] << " <input_file>" << std::endl;
-        return 1;
+int main() {
+    Settings settings = loadSettings("settings.json");
+    BoardArray board = loadStartingBoard(settings.startingPosition);
+    printBoard(board);
+
+    AggregateTimer agentClock;
+
+    for (int moveNumber = 1; moveNumber <= settings.maxMoves; ++moveNumber) {
+        std::cout << "Move #" << moveNumber << " (Agent as " << (settings.playerColor == BLACK ? "Black" : "White") << ")" << std::endl;
+
+        Timer turnTimer;
+
+        // Iterative deepening loop
+        int bestScore = -1e9;
+        int bestDepthReached = 0;
+        Move bestMove; // You'll define this structure later
+        double timeUsed = 0.0;
+
+        for (int depth = 1; ; ++depth) {
+            double remainingTime = settings.agentTimeLimit - turnTimer.elapsedSeconds();
+            if (remainingTime <= 0.05) break;
+
+            // Placeholder: replace with real search later
+            std::cout << "[Info] Searching at depth: " << depth << std::endl;
+            bestDepthReached = depth;
+            bestScore = 0; // temporary placeholder score
+            // bestMove = ...
+        }
+
+        timeUsed = turnTimer.elapsedSeconds();
+        agentClock.addDuration(timeUsed);
+
+        std::cout << "[Info] Move selected at depth " << bestDepthReached
+                  << " in " << timeUsed << " seconds."
+                  << " Aggregate time: " << agentClock.totalElapsed() << " s\n";
+
+        if (agentClock.totalElapsed() >= settings.agentMaxAggregateTime) {
+            std::cout << "[Warning] Agent time exhausted. Game over.\n";
+            break;
+        }
+
+        // TODO: Apply bestMove to board here
+        // board = applyMove(board, bestMove);
+        printBoard(board);
     }
 
-    // Execute movegen
-    int movegenStatus = system(movegenCmd.c_str());
-    if (movegenStatus != 0) {
-        std::cerr << "Error executing movegen." << std::endl;
-        return 1;
-    }
-
-    // Generate moves file name by replacing ".input" with ".moves"
-    std::string movesFile = inputFile.substr(0, inputFile.find_last_of(".")) + ".moves";
-
-    // Execute boardgen
-    std::string boardgenCmd = "boardgen " + inputFile + " " + movesFile;
-    int boardgenStatus = system(boardgenCmd.c_str());
-    if (boardgenStatus != 0) {
-        std::cerr << "Error executing boardgen." << std::endl;
-        return 1;
-    }
-
+    std::cout << "Game loop finished.\n";
     return 0;
 }
