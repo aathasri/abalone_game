@@ -42,7 +42,30 @@ std::set<Move> MoveGenerator::generateMoves(int currentPlayerColour, Board curre
                         // CHECK FOR SIDESTEP
                         MoveDirection currMoveDirection = static_cast<MoveDirection>(k);
                         std::vector<std::pair<MoveDirection, MoveDirection>> perp_directions = MoveDirectionHelper::getPerpendiculars(currMoveDirection);
-                        
+
+                        for (std::pair<MoveDirection, MoveDirection> perp_pair : perp_directions) {
+
+                            int perpFirstLetIndex = directionArray[static_cast<int>(perp_pair.first)].first;
+                            int perpFirstNumIndex = directionArray[static_cast<int>(perp_pair.first)].second;
+
+                            int perpSecondLetIndex = directionArray[static_cast<int>(perp_pair.second)].first;
+                            int perpSecondNumIndex = directionArray[static_cast<int>(perp_pair.second)].second;
+
+                            bool perpFirstValid = currentBoard.validPosition(i + perpFirstLetIndex, j + perpFirstNumIndex);
+                            bool perpSecondValid = currentBoard.validPosition(i + perpSecondLetIndex, j + perpSecondNumIndex);
+
+                            int potentialPerpFirstLetIndex = perpFirstLetIndex + movementLetIndex;
+                            int potentialPerpFirstNumIndex = perpFirstNumIndex + movementNumIndex;
+
+                            int potentialPerpSecondLetIndex = perpSecondLetIndex + movementLetIndex;
+                            int potentialPerpSecondNumIndex = perpSecondNumIndex + movementNumIndex;
+
+                            // bool potentialPerpFirstValid = currentBoard.validPosition();
+
+
+
+
+                        }
 
 
 

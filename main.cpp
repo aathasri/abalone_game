@@ -37,24 +37,6 @@ int main() {
 
     std::cout << m.size() << std::endl;
 
-    // std::set<Move> moveSet;
-
-    // Move m1(MoveDirection::NE);
-    // m1.addPosition(1, 2);
-    // m1.addPosition(2, 3);
-    
-    // Move m2(MoveDirection::NE);
-    // m2.addPosition(2, 3);
-    // m2.addPosition(1, 2);  // Same as m1, just different order
-
-    // // m2.printString();
-    
-    // moveSet.insert(m1);
-    // moveSet.insert(m2);
-
-
-
-
     MoveGenerator::printMoves(m);
 
       // Call method to print the board

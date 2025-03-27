@@ -4,6 +4,7 @@
 #include <utility>   // For std::pair
 #include <array>
 #include <ostream>   // For std::ostream
+#include <vector>
 
 enum class MoveDirection {
     W,
