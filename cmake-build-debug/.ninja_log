@@ -1,0 +1,7 @@
+# ninja log v6
+53	725	7648149854100222	CMakeFiles/abalone.dir/src/move_direction.cpp.obj	6ad982903564faf
+75	881	7648149854315641	CMakeFiles/abalone.dir/src/board.cpp.obj	42b5d7612e1eba4a
+40	792	7648149967979023	CMakeFiles/abalone.dir/src/move.cpp.obj	bee570f5184536fc
+62	938	7648149968197860	CMakeFiles/abalone.dir/src/main.cpp.obj	ccac24194a15de42
+6	963	7648150584297197	CMakeFiles/abalone.dir/src/move_generator.cpp.obj	e12b2a0bf7f860f1
+964	1323	7648150593863645	abalone.exe	708875e299416e2c
