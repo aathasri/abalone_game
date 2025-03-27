@@ -60,9 +60,17 @@ std::set<Move> MoveGenerator::generateMoves(int currentPlayerColour, Board curre
                             int potentialPerpSecondLetIndex = perpSecondLetIndex + movementLetIndex;
                             int potentialPerpSecondNumIndex = perpSecondNumIndex + movementNumIndex;
 
-                            // bool potentialPerpFirstValid = currentBoard.validPosition();
+                            bool potentialPerpFirstValid = currentBoard.validPosition(i + potentialPerpFirstLetIndex, j + potentialPerpFirstNumIndex);
+                            bool potentialPerpFirstValid = currentBoard.validPosition(i + potentialPerpSecondLetIndex, j + potentialPerpSecondNumIndex);
 
-
+                            // if the firstperp position is valid and my colour
+                                //if the first portential position is valid and empty
+                                    // make a move and add currentposition, and first perp. add to list
+                                // 
+                            // if the second perp position is valid and my colour
+                                // if the second potential position is vlaid and empty
+                                    // make a move and add current position, second perp, add to list
+                                
 
 
                         }
