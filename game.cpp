@@ -10,7 +10,7 @@
 #include <ctime>
 #include <set>
 #include <cmath>
-
+#include <climits>
 
 // represents the states of a cell: black, empty, or white
 enum class CellState { EMPTY, BLACK, WHITE };
@@ -496,9 +496,8 @@ bool arePositionsNotOneMoveAway(std::unordered_map<std::string, char>& boardStat
 
 void applyMove(std::unordered_map<std::string, char>&boardState, const std::string& move) {
     // Apply move logic
-    char moveType = move[0];
 
-    if (moveType == 'i') {
+    if (char moveType = move[0]; moveType == 'i') {
         std::string position = move.substr(1, 2);
         std::string direction = move.substr(3);
         char color = boardState[position];
@@ -634,92 +633,49 @@ std::string boardToString(const std::unordered_map<std::string, char>& boardStat
     return result;
 }
 
-// simulate moves and write boards to a new file
-void simulateMoves(const std::string& boardFile, const std::string& movesFile, const std::string& outputFile) {
-    auto initialBoardState = parseBoard(boardFile);
+std::vector<std::string> generateBoardStates(const AbaloneBoard& initialBoard, const std::vector<std::string>& moves) {
+    std::vector<std::string> boardStates;
+    auto initialBoardState = parseBoardFromString(initialBoard.boardToString());
 
-    std::ofstream outFile(outputFile);
-    if (!outFile) {
-        std::cerr << "Error opening output file." << std::endl;
-        return;
-    }
-
-    // Read the moves file
-    std::ifstream moveFile(movesFile);
-    std::string move;
-    while (std::getline(moveFile, move)) {
-        // create a copy of the initial board state for each move
+    for (const std::string& move : moves) {
+        // Create a fresh copy of the initial board state for each move
         auto boardState = initialBoardState;
 
-        // apply the current move to the new board state
+        // Apply the move
         applyMove(boardState, move);
 
-        // convert the board to string format
+        // Convert to string and clean it
         std::string boardStr = boardToString(boardState);
         boardStr = removeSingleCharValues(boardStr);
-
-        // write the updated board to the file
-        outFile << boardStr << std::endl;
+        boardStates.push_back(boardStr);
     }
 
-    outFile.close();
+    return boardStates;
 }
 
-void sortStringsInEachLine(const std::string& filename) {
-    std::vector<std::string> lines;
-    std::ifstream file(filename);
-    std::string line;
-
-    // Read file contents into a vector
-    while (std::getline(file, line)) {
-        std::stringstream ss(line);
-        std::string word;
-        std::vector<std::string> words;
-
-        // Split the line by commas and collect the words
-        while (std::getline(ss, word, ',')) {
-            words.push_back(word);
-        }
-
-        // Sort the words alphabetically
-        std::sort(words.begin(), words.end());
-
-        // Rebuild the line with sorted words
-        std::string sortedLine;
-        for (size_t i = 0; i < words.size(); ++i) {
-            sortedLine += words[i];
-            if (i != words.size() - 1) {
-                sortedLine += ",";
-            }
-        }
-
-        lines.push_back(sortedLine);
-    }
-    file.close();
-
-    // Write modified contents back to the file
-    std::ofstream outFile(filename);
-    for (const std::string& l : lines) {
-        outFile << l << "\n";
-    }
-}
 
 int marblesOnBoard(const std::string& boardState, CellState player) {
     int playerCount = 0;
     int opponentCount = 0;
+    char a;
+
 
     char playerChar = (player == CellState::BLACK) ? 'b' : 'w';  // Player's marble character
     char opponentChar = (player == CellState::BLACK) ? 'w' : 'b';  // Opponent's marble character
 
     // Loop through the board state (assuming two characters per marble, e.g., C5b)
     for (size_t i = 0; i < boardState.size(); i += 4) {
+        a = boardState[i+2];
         if (boardState[i + 2] == playerChar) {
             playerCount++;
-        } else if (boardState[i + 1] == opponentChar) {
+        } else //if
+        // (boardState[i + 1] == opponentChar)
+            {
             opponentCount++;
         }
     }
-
+    // std::cout << playerCount << "\n";
+    // std::cout << opponentCount << "\n";
     return playerCount - opponentCount;  // Return the difference: positive if player's marbles are more
 }
 
@@ -759,87 +715,116 @@ int centerProximity(const std::string& boardState, CellState player) {std::strin
 
 
 int cohesion(const std::string& boardState, CellState player) {
-    int populations = 0;
-    std::set<std::string> visited;
     char playerChar = (player == CellState::BLACK) ? 'b' : 'w';
+    std::vector<std::string> positions;
 
-    // Modify this logic to explore clusters of adjacent 'player' pieces
-    for (size_t i = 0; i < boardState.size(); ++i) {
-        if (boardState[i] == playerChar && visited.find("A" + std::to_string(i+1)) == visited.end()) {
-            populations++;
-            // Depth-first search or BFS to explore the cluster
-            // Explore the surrounding cells for this cluster
+    // Extract all positions of the player's marbles
+    for (size_t i = 0; i < boardState.size(); i += 4) {
+        if (boardState[i+2] == playerChar) {
+            positions.push_back(boardState.substr(i, 2));
         }
     }
 
-    return populations/3;
+    // Calculate average distance between all marbles
+    int totalDistance = 0;
+    for (size_t i = 0; i < positions.size(); ++i) {
+        for (size_t j = i+1; j < positions.size(); ++j) {
+            totalDistance += calculateDistance(positions[i], positions[j]);
+        }
+    }
+
+    return (positions.empty()) ? 0 : totalDistance / positions.size();
 }
+
+
+int opponentMarblesPushed(const std::string& boardState, CellState player) {
+    char opponentChar = (player == CellState::BLACK) ? 'w' : 'b';
+    int opponentMarbles = std::count(boardState.begin(), boardState.end(), opponentChar);
+    return 14 - opponentMarbles;  // Starts at 14 (max marbles), decreases as opponent loses marbles
+}
+
 
 int evaluateBoard(const std::string& boardState, CellState player) {
+    char playerChar = (player == CellState::BLACK) ? 'b' : 'w';
+
     int h1 = centerProximity(boardState, player); // h1: Center Proximity
     int h2 = cohesion(boardState, player);       // h2: Cohesion
-    int h3 = marblesOnBoard(boardState, player) * 2;  // h3: Marbles on Board
+    int h3 = marblesOnBoard(boardState, player);  // h3: Marbles on Board
+    int h4 = opponentMarblesPushed(boardState, player);
+    int h5 = -(14 - std::count(boardState.begin(), boardState.end(), playerChar));
+
+
     // std::cout << "h1 h2 h3: " << h1 << " " << h2 << " " << h3 << "\n" <<std::endl;
-    // return h1 + h2 + h3;
-    return h1 + h2 + h3;
+    int w1 = 1;
+    int w2 = 10;
+    int w3 = 50;
+    int w4 = 200;
+    int w5 = 150;  // Strong penalty for losing marbles
+    // std::cout << "eval: " << w1*h1 + w2*h2 + w3*h3 << "\n";
+    return w1*h1 + w2*h2 + w3*h3 + w4*h4 + w5*h5;
+    // std::cout << "h3: " << h3 << "\n";
+    // return h3;
 }
 
 
-#include <climits>
 
-// Minimax function with Alpha-Beta Pruning that returns both the best move and its evaluation score
 std::pair<int, std::string> minimax(AbaloneBoard& board, int depth, int alpha, int beta, CellState currentPlayer) {
-    // Base case: if depth is 0 or game over, return the evaluation of the current board
     if (depth == 0) {
-        return {evaluateBoard(board.boardToString(), currentPlayer), ""}; // Return evaluation score with no move
+        // std::cout << "Depth 0 Board: " << board.boardToString() << "\n";
+        return {evaluateBoard(board.boardToString(), currentPlayer), ""};
     }
 
     std::vector<std::string> legalMoves = board.generateLegalMoves(currentPlayer);
     if (legalMoves.empty()) {
-        return {evaluateBoard(board.boardToString(), currentPlayer), ""}; // No moves left, return evaluation
+        return {evaluateBoard(board.boardToString(), currentPlayer), ""};
     }
 
     std::string bestMove = "";
     int bestEval;
     char playerChar = (currentPlayer == CellState::BLACK) ? 'b' : 'w';
-    if (playerChar == 'b') {  // Maximizing player (AI)
+    if (playerChar == 'b') { // Maximizing (Black)
         bestEval = INT_MIN;
         for (const std::string& move : legalMoves) {
             AbaloneBoard newBoard = board;
-
             auto parsedBoard = parseBoardFromString(newBoard.boardToString());
             applyMove(parsedBoard, move);
-            auto [eval, _] = minimax(newBoard, depth - 1, alpha, beta, CellState::WHITE);  // Recursively evaluate for opponent's turn
+            newBoard = AbaloneBoard();
+            for (const auto& [pos, color] : parsedBoard) {
+                newBoard.setCellState(pos, color == 'b' ? CellState::BLACK : CellState::WHITE);
+            }
+            // std::cout << "Move: " << move << " -> New Board: " << newBoard.boardToString() << "\n";
+            auto [eval, _] = minimax(newBoard, depth - 1, alpha, beta, CellState::WHITE);
             if (eval > bestEval) {
                 bestEval = eval;
-                bestMove = move;  // Store the best move for the AI
+                bestMove = move;
             }
             alpha = std::max(alpha, bestEval);
-            if (beta <= alpha) {
-                break;  // Alpha-Beta Pruning
-            }
+            if (beta <= alpha) break;
         }
-    } else {  // Minimizing player (opponent)
+    } else { // Minimizing (White)
+        // Similar logic with logging
         bestEval = INT_MAX;
         for (const std::string& move : legalMoves) {
             AbaloneBoard newBoard = board;
             auto parsedBoard = parseBoardFromString(newBoard.boardToString());
             applyMove(parsedBoard, move);
-
-            auto [eval, _] = minimax(newBoard, depth - 1, alpha, beta, CellState::BLACK);  // Recursively evaluate for AI's turn
+            newBoard = AbaloneBoard();
+            for (const auto& [pos, color] : parsedBoard) {
+                newBoard.setCellState(pos, color == 'b' ? CellState::BLACK : CellState::WHITE);
+            }
+            // std::cout << "Move: " << move << " -> New Board: " << newBoard.boardToString() << "\n";
+            auto [eval, _] = minimax(newBoard, depth - 1, alpha, beta, CellState::BLACK);
             if (eval < bestEval) {
                 bestEval = eval;
-                bestMove = move;  // Store the best move for the opponent (which minimizes AI's score)
+                bestMove = move;
             }
             beta = std::min(beta, bestEval);
-            if (beta <= alpha) {
-                break;  // Alpha-Beta Pruning
-            }
+            if (beta <= alpha) break;
         }
     }
-
-    return {bestEval, bestMove};  // Return the evaluation score and best move found
+    return {bestEval, bestMove};
 }
+
 
 
 int main() {
@@ -852,7 +837,7 @@ int main() {
     // Initial parse of the board
     parseFile(inputFileName, board, playerToMove);
 
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 40; i++) {
         // Generate all legal moves for the current state
         std::vector<std::string> legalMoves = board.generateLegalMoves(playerToMove);
 
@@ -861,25 +846,11 @@ int main() {
             break;
         }
 
-        // Write moves to moves.txt
-        std::ofstream outFile("moves.txt");
-        for (const auto& move : legalMoves) {
-            outFile << move << std::endl;
-        }
-        outFile.close();
+        // Simulate moves directly in memory
+        std::vector<std::string> possibleBoards = generateBoardStates(board, legalMoves);
 
-        // Simulate moves and generate new board states
-        simulateMoves(inputFileName, "moves.txt", "boards.txt");
-        sortStringsInEachLine("boards.txt");
-
-        // Read possible boards from boards.txt
-        std::vector<std::string> possibleBoards;
-        std::ifstream boardFile("boards.txt");
-        std::string line;
-        while (std::getline(boardFile, line)) {
-            possibleBoards.push_back(line);
-        }
-        boardFile.close();
+        // Sort the board states alphabetically (replacing sortStringsInEachLine)
+        std::sort(possibleBoards.begin(), possibleBoards.end());
 
         if (possibleBoards.empty()) {
             std::cout << "No valid moves available!" << std::endl;
@@ -888,7 +859,7 @@ int main() {
 
         std::string selectedMove;
         std::string selectedBoard;
-        std::string before =board.boardToString();
+        std::string before = board.boardToString();
         std::cout << "Before: " << before << std::endl;
 
         if (playerToMove == CellState::BLACK) {
@@ -919,13 +890,10 @@ int main() {
                 board.setCellState(pos, color == 'b' ? CellState::BLACK : CellState::WHITE);
             }
         }
-        bool b = before == board.boardToString();
-        std::cout << "After: " << board.boardToString() << std::endl;
-        std::cout << "same: "<< b<<"\n";
-        std::cout << "board chosen by algo: " << selectedBoard << std::endl;
-        std::cout << "move chosen by algo: " << selectedMove << std::endl;
-        std::cout << "__________" << std::endl;
-        std::cout << "Turn " << i + 1 << ": Selected move: " << selectedMove << std::endl;
+
+        // std::cout << "board chosen by algo: " << selectedBoard << std::endl;
+        // std::cout << "move chosen by algo: " << selectedMove << std::endl;
+        // std::cout << "Turn " << i + 1 << ": Selected move: " << selectedMove << std::endl;
 
         // Count marbles
         int blackCount = std::count(selectedBoard.begin(), selectedBoard.end(), 'b');
@@ -934,11 +902,11 @@ int main() {
         std::cout << "white count " << whiteCount << "\n";
 
         // Check win conditions
-        if (blackCount < 9) {
+        if (blackCount < 1) {
             std::cout << "White wins" << std::endl;
             return 1;
         }
-        if (whiteCount < 9) {
+        if (whiteCount < 1) {
             std::cout << "Black wins" << std::endl;
             return 2;
         }
