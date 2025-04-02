@@ -1,9 +1,15 @@
 #include "board.h"
+#include "move.h"
 #include "move_generator.h"
-
+#include "board_generator.h"
+#include "heuristic_calculator.h"
 
 #include <iostream>
 #include <vector>
+#include <set>
+
+// transposition tables -> zobaras hashing?
+// move ordering - ascending and descending
 
 int main() {
 
@@ -28,18 +34,31 @@ int main() {
     std::vector<std::string> boardPieces = Board::stringToList(piecesString);
 
     gameBoard.placePieces(boardPieces);
+    gameBoard.printBoard();
 
-    gameBoard.printBoard(); 
- 
-    MoveGenerator generator;
 
-    std::set<Move> m = generator.generateMoves(1, gameBoard);
+    // Generate Moves
+    MoveGenerator moveGen = MoveGenerator();
+    moveGen.generateMoves(1, gameBoard);
 
-    std::cout << m.size() << std::endl;
+    // moveGen.printMoves();
 
-    MoveGenerator::printMoves(m);
+    std::set<Move> generatedMoves = moveGen.getGeneratedMoves();
 
-      // Call method to print the board
+    std::cout << generatedMoves.size() << std::endl;
+
+    // Generate Boards
+    BoardGenerator boardGen = BoardGenerator();
+    boardGen.generateBoards(gameBoard, generatedMoves);
+    boardGen.printBoards();
+    std::vector<Board> generatedBoards = boardGen.getGeneratedBoards();
+
+
+    HeuristicCalculator heuristicCal = HeuristicCalculator();
+    Board result = heuristicCal.selectBoard(generatedBoards);
+
+    result.printPieces();
+
 
 
     return 0;

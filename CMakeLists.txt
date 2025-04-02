@@ -9,21 +9,23 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # Add the source files
 set(SOURCES
-        src/move_generator.cpp
-        src/move.cpp
-        src/move_direction.cpp
-        src/board.cpp
-#    ./settings.cpp
         src/main.cpp
+        src/board.cpp
+        src/move.cpp
+        src/move_generator.cpp
+        src/board_generator.cpp
+        src/heuristic_calculator.cpp
+        # ./settings.cpp
 )
 
 # Add the header files (optional, for IDEs)
 set(HEADERS
-        include/move_generator.h
-        include/move.h
-        include/move_direction.h
         include/board.h
-#    ./settings.h
+        include/move.h
+        include/move_generator.h
+        include/board_generator.h
+        include/heuristic_calculator.h
+        # ./settings.h
 )
 
 # Create the executable

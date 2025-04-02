@@ -3,7 +3,6 @@
 
 #include "board.h"
 #include "move.h"
-#include "move_direction.h"
 
 #include <iostream>
 #include <array>
@@ -12,25 +11,27 @@
 
 class MoveGenerator {
 
+private:
+
+std::set<Move> generated_moves;
+
 public:
     // Constructor
     // MoveGenerator();
 
     // Generate all valid moves given a board
-    std::set<Move> generateMoves(int turnColour, Board currentBoard);
+    void generateMoves(int turnColour, Board& currentBoard);
 
     // store the pieces, their orientation, the direction
-
+    std::set<Move> getGeneratedMoves();
 
     // Converts Pieces and Direciton into Move Notation
     // static std::string encodeNotation(std::vector<std::string>& pieces, std::string& direction);
 
-    static void printMoves(const std::set<Move>& m);
+    void printMoves();
 
 private:
-    // find pieces that are beside empty space or opponent
-    
-
+    bool potentialPushPositionValid(int i, int j, Board& currentBoard);
 };
 
 #endif // MOVE_GENERATOR_H

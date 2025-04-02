@@ -1,29 +1,63 @@
 #ifndef MOVE_H
 #define MOVE_H
 
-#include "move_type.h"
-#include "move_direction.h"
-
 #include <iostream>
 #include <array>
 #include <vector>
+#include <utility>
+#include <ostream>
 
-struct Move {
-    std::array<std::pair<int, int>, 3> positions;
-    int size = 0;
-    MoveDirection direction;
-
-    Move(MoveDirection dir);
-
-    void addPosition(int col, int row);
-    void copyMovePositions(Move m);
-    bool operator<(const Move& other) const;
-    void printString() const;
+enum class MoveDirection {
+    W,
+    NW,
+    NE,
+    E,
+    SE,
+    SW,
+    COUNT
 };
 
-class MoveValidator {
-public:
-    static bool ValidateMove(const MoveType type, const std::vector<std::string>& pieces, const MoveDirection direction);
+std::ostream& operator<<(std::ostream& os, MoveDirection dir);
+
+class DirectionHelper {
+    private:
+        static const std::array<std::pair<int, int>, static_cast<int>(MoveDirection::COUNT)> directionArray;
+    
+    public:
+        static std::pair<int, int> getDelta(MoveDirection dir);
+        static std::pair<int, int> getDelta(int dir);
+        static std::vector<std::pair<MoveDirection, MoveDirection>> getPerpendiculars(MoveDirection dir);
+    };
+
+enum class MoveType {
+    SIDESTEP,
+    INLINE,
+    COUNT
 };
 
+class Move {
+    friend class Board;
+    private:
+        MoveType type;
+        MoveDirection direction;
+        int size;
+        std::array<std::pair<int, int>, 3> positions;
+    
+    public:
+        Move(MoveType type, MoveDirection direction);
+    
+        void addPosition(int col, int row);
+        void copyMovePositions(const Move& other);
+        bool operator<(const Move& other) const;
+    
+        int getSize() const { return size; }
+        MoveType getType() const { return type; }
+        MoveDirection getDirection() const { return direction; }
+        const std::pair<int, int>& getPosition(int index) const { return positions[index]; }
+    
+        void printString() const;
+    
+        friend std::ostream& operator<<(std::ostream& os, const Move& move);
+    };
+    
 #endif // MOVE_H

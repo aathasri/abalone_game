@@ -1,30 +1,264 @@
 #include "board.h"
 
-// Constructor implementation
-Board::Board(const std::array<std::array<int, COLS>, ROWS>& matrix) : gameboard(matrix) {}
+/** 
+ * --------------------------------------------------------------------------------
+ * Constructor & Getters
+ * --------------------------------------------------------------------------------
+ */ 
+Board::Board(const std::array<std::array<int, COLS>, ROWS>& matrix)
+    : gameboard(matrix), numPlayerOnePieces(14), numPlayerTwoPieces(14) 
+{
+    initializeAdjacencyMatrix();
+}
 
-std::array<std::array<int, COLS>, ROWS>& Board::getBoard()
+const std::array<std::array<int, COLS>, ROWS>& Board::getBoard() const
 {
     return gameboard;
 }
 
+const std::vector<std::vector<bool>> &Board::getAdjacencyMatrix() const
+{
+    return adjacencyMatrix;
+}
+
+const std::vector<std::pair<int, int>>& Board::getIndexToCoord() const {
+    return indexToCoord;
+}
+
+int Board::getNumPlayerOnePieces() const
+{
+    return numPlayerOnePieces;
+}
+
+int Board::getNumPlayerTwoPieces() const
+{
+    return numPlayerTwoPieces;
+}
+
+
 /**
- * Places pieces from a list of pieces onto the board.
+ * TEMP - For testing
  */
 void Board::placePieces(const std::vector<std::string> &pieces)
 {
+    numPlayerOnePieces = 0;
+    numPlayerTwoPieces = 0;
     for (const std::string& p : pieces) {
         int letterAxis = 'I' - p[0];
         int numberAxis = p[1] - '1';
         char colour = p[2];
         if (Board::validPosition(letterAxis, numberAxis)) {
-            gameboard[letterAxis][numberAxis] = playerCharMap.at(colour);
+            gameboard[letterAxis][numberAxis] = playerColourMap.at(colour);
+            if (playerColourMap.at(colour) == 1) {
+                numPlayerOnePieces++;
+            } else {
+                numPlayerTwoPieces++;
+            }
         } else {
             std::cerr << "Error: Pieces cannot be placed on gameboard" << std::endl;
         }
     }
+
+    initializeAdjacencyMatrix();
 }
 
+/** 
+ * --------------------------------------------------------------------------------
+ * Apply Moves
+ * --------------------------------------------------------------------------------
+ */ 
+void Board::applyMove(const Move move)
+{
+    if (move.size == 1) {
+        moveOnePiece(move);
+    } else if (move.type == MoveType::INLINE) {
+        movePiecesInline(move);
+    } else if (move.type == MoveType::SIDESTEP) {
+        movePiecesSideStep(move);
+    }
+}
+
+void Board::moveOnePiece(const Move move)
+{
+    int oldPosLetIndex = move.positions[0].first;
+    int oldPosNumIndex = move.positions[0].second;
+    int currPlayer = gameboard[oldPosLetIndex][oldPosNumIndex];
+    int newPosLetIndex = oldPosLetIndex + DirectionHelper::getDelta(move.direction).first;
+    int newPosNumIndex = oldPosNumIndex + DirectionHelper::getDelta(move.direction).second;
+    gameboard[newPosLetIndex][newPosNumIndex] = currPlayer;
+    gameboard[oldPosLetIndex][oldPosNumIndex] = 0;
+
+    updateAdjacencyForMove({{oldPosLetIndex, oldPosNumIndex}}, {{newPosLetIndex, newPosNumIndex}});
+}
+
+void Board::movePiecesInline(const Move move)
+{
+    auto [dx, dy] = DirectionHelper::getDelta(move.getDirection());
+
+    std::vector<std::pair<int, int>> oldPositions;
+    std::vector<std::pair<int, int>> newPositions;
+
+    // STEP 1: Push opponent marble(s) first
+    int pushCount = move.getSize() == 2 ? 1 : 2;
+
+    int leadCol = move.getPosition(0).first;
+    int leadRow = move.getPosition(0).second;
+
+    for (int i = pushCount - 1; i >= 0; --i) {
+        int oppCol = leadCol + dx * (i + 1);
+        int oppRow = leadRow + dy * (i + 1);
+        int newCol = oppCol + dx;
+        int newRow = oppRow + dy;
+
+        if (!validPosition(oppCol, oppRow)) continue; // invalid cell (not playable)
+
+        int oppPlayer = gameboard[oppCol][oppRow];
+        if (oppPlayer != 1 && oppPlayer != 2) continue; // not a piece, skip
+
+        oldPositions.push_back({oppCol, oppRow});
+
+        if (!validPosition(newCol, newRow)) {
+            // Pushed off the board
+            if (oppPlayer == 1) {
+                numPlayerOnePieces--;
+            } else if (oppPlayer == 2) {
+                numPlayerTwoPieces--;
+            }
+            gameboard[oppCol][oppRow] = 0; // remove from board
+        } else {
+            // Pushed to a new cell
+            gameboard[newCol][newRow] = oppPlayer;
+            gameboard[oppCol][oppRow] = 0;
+            newPositions.push_back({newCol, newRow});
+        }
+    }
+
+    // STEP 2: Move current player's marbles
+    for (int i = 0; i < move.getSize(); ++i) {
+        int col = move.getPosition(i).first;
+        int row = move.getPosition(i).second;
+
+        int newCol = col + dx;
+        int newRow = row + dy;
+
+        int player = gameboard[col][row];
+
+        gameboard[newCol][newRow] = player;
+        gameboard[col][row] = 0;
+
+        oldPositions.push_back({col, row});
+        newPositions.push_back({newCol, newRow});
+    }
+
+    // STEP 3: Update adjacency matrix
+    updateAdjacencyForMove(oldPositions, newPositions);
+}
+
+
+void Board::movePiecesSideStep(const Move move)
+{
+    std::vector<std::pair<int, int>> oldPositions, newPositions;
+
+    for (std::pair<int, int> pair : move.positions) {
+        int oldPosLetIndex = pair.first;
+        int oldPosNumIndex = pair.second;
+        int newPosLetIndex = oldPosLetIndex + DirectionHelper::getDelta(move.direction).first;
+        int newPosNumIndex = oldPosNumIndex + DirectionHelper::getDelta(move.direction).second;
+
+        oldPositions.push_back({oldPosLetIndex, oldPosNumIndex});
+        newPositions.push_back({newPosLetIndex, newPosNumIndex});
+        gameboard[newPosLetIndex][newPosNumIndex] = gameboard[oldPosLetIndex][oldPosNumIndex];
+        gameboard[oldPosLetIndex][oldPosNumIndex] = 0;
+    }
+
+    updateAdjacencyForMove(oldPositions, newPositions);
+}
+
+/** 
+ * --------------------------------------------------------------------------------
+ * Adjacency Matrix
+ * --------------------------------------------------------------------------------
+ */ 
+
+void Board::initializeAdjacencyMatrix()
+{
+    coordToIndex.clear();
+    indexToCoord.clear();
+
+    int index = 0;
+    for (int i = 0; i < ROWS; ++i) {
+        for (int j = 0; j < COLS; ++j) {
+            if (gameboard[i][j] != -1) {
+                coordToIndex[{i, j}] = index;
+                indexToCoord.push_back({i, j});
+                index++;
+            }
+        }
+    }
+
+    int N = indexToCoord.size();
+    adjacencyMatrix.assign(N, std::vector<bool>(N, false));
+
+    std::vector<std::pair<int, int>> directions = {
+        {-1, 0}, {-1, 1}, {0, 1},
+        {1, 0}, {1, -1}, {0, -1}
+    };
+
+    for (int idx = 0; idx < N; ++idx) {
+        auto [i, j] = indexToCoord[idx];
+        for (auto [di, dj] : directions) {
+            auto neighbor = std::make_pair(i + di, j + dj);
+            if (coordToIndex.count(neighbor)) {
+                int neighborIdx = coordToIndex.at(neighbor);
+                adjacencyMatrix[idx][neighborIdx] = true;
+            }
+        }
+    }
+}
+
+void Board::updateAdjacencyForMove(const std::vector<std::pair<int, int>> &oldPositions, const std::vector<std::pair<int, int>> &newPositions)
+{
+    for (const auto& pos : oldPositions) {
+        if (coordToIndex.count(pos)) {
+            updateAdjacencyAt(coordToIndex[pos]);
+        }
+    }
+
+    for (const auto& pos : newPositions) {
+        if (coordToIndex.count(pos)) {
+            updateAdjacencyAt(coordToIndex[pos]);
+        }
+    }
+}
+
+void Board::updateAdjacencyAt(int idx)
+{
+    auto [i, j] = indexToCoord[idx];
+    for (int k = 0; k < indexToCoord.size(); ++k) {
+        adjacencyMatrix[idx][k] = false;
+        adjacencyMatrix[k][idx] = false;
+    }
+
+    std::vector<std::pair<int, int>> directions = {
+        {-1, 0}, {-1, 1}, {0, 1},
+        {1, 0}, {1, -1}, {0, -1}
+    };
+
+    for (auto [di, dj] : directions) {
+        auto neighbor = std::make_pair(i + di, j + dj);
+        if (coordToIndex.count(neighbor)) {
+            int neighborIdx = coordToIndex[neighbor];
+            adjacencyMatrix[idx][neighborIdx] = true;
+            adjacencyMatrix[neighborIdx][idx] = true;
+        }
+    }
+}
+
+/** 
+ * --------------------------------------------------------------------------------
+ * Helper Methods
+ * --------------------------------------------------------------------------------
+ */ 
 
 bool Board::validPosition(const int letterIndex, const int numberIndex)
 {
@@ -33,29 +267,47 @@ bool Board::validPosition(const int letterIndex, const int numberIndex)
         && (gameboard[letterIndex][numberIndex] >= 0);
 }
 
-// void Board::sortMovePieces(std::vector<std::string> &pieces)
-// {
-//     if (pieces.size() < 2) return;
-//     std::string temp;
-//     if (pieces[0] > pieces[1]) {
-//         temp = pieces[0]; 
-//         pieces[0] = pieces[1]; 
-//         pieces[1] = temp;
-//     }
-//     if (pieces.size() == 3) {
-//         if (pieces[1] > pieces[2]) {
-//             temp = pieces[1]; 
-//             pieces[1] = pieces[2]; 
-//             pieces[2] = temp;
-//         }
-//         if (pieces[0] > pieces[1]) {
-//             temp = pieces[0]; 
-//             pieces[0] = pieces[1]; 
-//             pieces[1] = temp;
-//         }
-//     }
-// }
+/** 
+ * --------------------------------------------------------------------------------
+ * Printing
+ * --------------------------------------------------------------------------------
+ */ 
 
+void Board::printPieces() const
+{
+    std::ostringstream blackOss;
+    std::ostringstream whiteOss;
+    bool firstBlack = true;
+    bool firstWhite = true;
+
+    for (int i = ROWS - 1; i >= 0; --i) {
+        for (int j = 0; j < COLS; ++j) {
+            int cell = gameboard[i][j];
+            char state = printMap.at(cell);
+            char letterIndex = 'I' - i;
+            int numberIndex = 1 + j;
+
+            if (state == 'b') {
+                if (!firstBlack) blackOss << ",";
+                blackOss << letterIndex << numberIndex << state;
+                firstBlack = false;
+            } else if (state == 'w') {
+                if (!firstWhite) whiteOss << ",";
+                whiteOss << letterIndex << numberIndex << state;
+                firstWhite = false;
+            }
+        }
+    }
+
+    std::ostringstream finalOss;
+    finalOss << blackOss.str();
+    if (!whiteOss.str().empty()) {
+        if (!blackOss.str().empty()) finalOss << ",";
+        finalOss << whiteOss.str();
+    }
+
+    std::cout << finalOss.str() << ": " << numPlayerOnePieces << ", " << numPlayerTwoPieces<< std::endl;
+}
 
 /**
  * Prints matrix representation of gameboard.
@@ -63,8 +315,8 @@ bool Board::validPosition(const int letterIndex, const int numberIndex)
 void Board::printMatrix() const {
     for (const auto& row : gameboard) {
         for (int cell : row) {
-            char colour = printMap.at(cell);
-            std::cout << colour << " ";
+            char state = printMap.at(cell);
+            std::cout << state << " ";
         }
         std::cout << std::endl;
     }
@@ -95,35 +347,6 @@ void Board::printBoard() const {
 }
 
 /**
- * Creates a string of all pieces on the gameboard.
- */
-std::string Board::toString() const
-{
-    std::string result;
-    result.reserve(14 * 4 * 2); // reserve max space for all pieces on board
-    std::string whitePieces;
-    whitePieces.reserve(14 * 4); // 14 white pieces max, reprented with 3 characters + commas
-    
-    for (int i = COLS - 1; i > 0; --i) {
-        for (int j = 0; j < ROWS; j++) {
-            char letterPosition = static_cast<char>('I' - i);
-            std::string position = std::string(1, letterPosition) + std::to_string(j + 1);
-            if(gameboard[i][j] == 'b') {
-                result += position + "b,";
-            } else if (gameboard[i][j] == 'w') {
-                whitePieces += position + "w,";
-            }
-        }
-    }
-    // Removes trailing comma
-    result += whitePieces;
-    if (!result.empty()) {
-        result.pop_back();
-    }
-    return result;
-}
-
-/**
  * Creates a list of all game pieces from a string of all pieces on the gameboard.
  */
 std::vector<std::string> Board::stringToList(const std::string &pieces)
@@ -137,4 +360,3 @@ std::vector<std::string> Board::stringToList(const std::string &pieces)
 
     return result;
 }
-
