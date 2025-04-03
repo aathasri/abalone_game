@@ -14,6 +14,7 @@
 const int ROWS = 9;
 const int COLS = 9;
 
+// TODO: this needs to change based on what person is what colour. right now it matches main
 const std::map<char, int> playerColourMap = {
     {'b', 1},
     {'w', 2}
@@ -37,9 +38,9 @@ private:
     // The adjacency matrix: adjacencyMatrix[i][j] is true if i and j are adjacent
     std::vector<std::vector<bool>> adjacencyMatrix;
     // Maps a board coordinate (i, j) to a linear index (for the matrix)
-    static std::map<std::pair<int, int>, int> coordToIndex; // <-- initialize when creating board for different board configuations
+    std::map<std::pair<int, int>, int> coordToIndex; // <-- initialize when creating board for different board configuations
     // Maps back from index to coordinate (to use in logic)
-    static std::vector<std::pair<int, int>> indexToCoord; // <-- initialize when creating board for different board configuations
+    std::vector<std::pair<int, int>> indexToCoord; // <-- initialize when creating board for different board configuations
 
     static std::array<std::array<std::array<uint64_t, 3>, COLS>, ROWS> zobristTable;
     static bool zobristInitialized;
@@ -55,7 +56,7 @@ public:
     // TODO - MAKE GETTERS CONSTANT
     const std::array<std::array<int, COLS>, ROWS>& getBoard() const;
     const std::vector<std::vector<bool>>& getAdjacencyMatrix() const;
-    static const std::map<std::pair<int, int>, int>& getCoordToIndex();
+    const std::map<std::pair<int, int>, int>& getCoordToIndex() const;
     const std::vector<std::pair<int, int>>& getIndexToCoord() const;
     const int& getNumPlayerOnePieces() const;
     const int& getNumPlayerTwoPieces() const;

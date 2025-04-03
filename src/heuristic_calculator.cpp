@@ -24,7 +24,7 @@ int HeuristicCalculator::calculateHeuristic(const Board& b) {
     const auto& board = b.getBoard();
     const auto& adj = b.getAdjacencyMatrix();
     const auto& coords = b.getIndexToCoord();
-    const auto& coordToIndex = Board::getCoordToIndex();
+    const auto& coordToIndex = b.getCoordToIndex();
 
     if (coords.size() != adj.size()) {
         std::cerr << "[ERROR] coords and adj size mismatch\n";
@@ -142,7 +142,7 @@ int HeuristicCalculator::groupingAdvantage(int player, const Board& b) {
 int HeuristicCalculator::lineAlignment(int player, const Board& b) {
     const auto& board = b.getBoard();
     const auto& coords = b.getIndexToCoord();
-    const auto& coordToIndex = Board::getCoordToIndex();
+    const auto& coordToIndex = b.getCoordToIndex();
 
     std::set<std::string> countedGroups;
     int aligned = 0;

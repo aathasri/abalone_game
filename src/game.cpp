@@ -11,7 +11,7 @@ Game::Game(const GameSettings& settings)
       turnCount(0),
       moveCountP1(0),
       moveCountP2(0),
-      ai(4)
+      ai(3)
 {
     currentPlayer = settings.getPlayerColourMap().at(PlayerColour::BLACK);
 }

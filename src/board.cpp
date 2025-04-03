@@ -9,7 +9,6 @@ Board::Board(const std::array<std::array<int, COLS>, ROWS>& matrix)
     : gameboard(matrix), numPlayerOnePieces(14), numPlayerTwoPieces(14) 
 {
     initializeAdjacencyMatrix();
-    initializeStaticAdjacencyMapping();
 }
 
 const std::array<std::array<int, COLS>, ROWS>& Board::getBoard() const
@@ -17,12 +16,13 @@ const std::array<std::array<int, COLS>, ROWS>& Board::getBoard() const
     return gameboard;
 }
 
-const std::vector<std::vector<bool>> &Board::getAdjacencyMatrix() const
+const std::vector<std::vector<bool>>& Board::getAdjacencyMatrix() const
 {
     return adjacencyMatrix;
 }
 
-const std::map<std::pair<int, int>, int>& Board::getCoordToIndex() {
+const std::map<std::pair<int, int>, int>& Board::getCoordToIndex() const
+{
     return coordToIndex;
 }
 
@@ -40,10 +40,6 @@ const int& Board::getNumPlayerTwoPieces() const
     return numPlayerTwoPieces;
 }
 
-
-/**
- * TEMP - For testing
- */
 void Board::placePieces(const std::vector<std::string> &pieces)
 {
     numPlayerOnePieces = 0;
@@ -67,11 +63,6 @@ void Board::placePieces(const std::vector<std::string> &pieces)
     initializeAdjacencyMatrix();
 }
 
-/** 
- * --------------------------------------------------------------------------------
- * Apply Moves
- * --------------------------------------------------------------------------------
- */ 
 void Board::applyMove(const Move& move)
 {
     if (move.size == 1) {
@@ -81,6 +72,7 @@ void Board::applyMove(const Move& move)
     } else if (move.type == MoveType::SIDESTEP) {
         movePiecesSideStep(move);
     }
+    initializeAdjacencyMatrix();
 }
 
 void Board::moveOnePiece(const Move& move)
@@ -92,20 +84,13 @@ void Board::moveOnePiece(const Move& move)
     int newPosNumIndex = oldPosNumIndex + DirectionHelper::getDelta(move.direction).second;
     gameboard[newPosLetIndex][newPosNumIndex] = currPlayer;
     gameboard[oldPosLetIndex][oldPosNumIndex] = 0;
-
-    updateAdjacencyForMove({{oldPosLetIndex, oldPosNumIndex}}, {{newPosLetIndex, newPosNumIndex}});
 }
 
 void Board::movePiecesInline(const Move& move)
 {
     auto [dx, dy] = DirectionHelper::getDelta(move.getDirection());
 
-    std::vector<std::pair<int, int>> oldPositions;
-    std::vector<std::pair<int, int>> newPositions;
-
-    // STEP 1: Push opponent marble(s) first
     int pushCount = move.getSize() == 2 ? 1 : 2;
-
     int leadCol = move.getPosition(0).first;
     int leadRow = move.getPosition(0).second;
 
@@ -115,30 +100,23 @@ void Board::movePiecesInline(const Move& move)
         int newCol = oppCol + dx;
         int newRow = oppRow + dy;
 
-        if (!validPosition(oppCol, oppRow)) continue; // invalid cell (not playable)
-
+        if (!validPosition(oppCol, oppRow)) continue;
         int oppPlayer = gameboard[oppCol][oppRow];
-        if (oppPlayer != 1 && oppPlayer != 2) continue; // not a piece, skip
-
-        oldPositions.push_back({oppCol, oppRow});
+        if (oppPlayer != 1 && oppPlayer != 2) continue;
 
         if (!validPosition(newCol, newRow)) {
-            // Pushed off the board
             if (oppPlayer == 1) {
                 numPlayerOnePieces--;
-            } else if (oppPlayer == 2) {
+            } else {
                 numPlayerTwoPieces--;
             }
-            gameboard[oppCol][oppRow] = 0; // remove from board
+            gameboard[oppCol][oppRow] = 0;
         } else {
-            // Pushed to a new cell
             gameboard[newCol][newRow] = oppPlayer;
             gameboard[oppCol][oppRow] = 0;
-            newPositions.push_back({newCol, newRow});
         }
     }
 
-    // STEP 2: Move current player's marbles
     for (int i = 0; i < move.getSize(); ++i) {
         int col = move.getPosition(i).first;
         int row = move.getPosition(i).second;
@@ -150,47 +128,25 @@ void Board::movePiecesInline(const Move& move)
 
         gameboard[newCol][newRow] = player;
         gameboard[col][row] = 0;
-
-        oldPositions.push_back({col, row});
-        newPositions.push_back({newCol, newRow});
     }
-
-    // STEP 3: Update adjacency matrix
-    updateAdjacencyForMove(oldPositions, newPositions);
 }
-
 
 void Board::movePiecesSideStep(const Move& move)
 {
-    std::vector<std::pair<int, int>> oldPositions, newPositions;
-
     for (int i = 0; i < move.size; ++i) {
         int oldPosLetIndex = move.positions[i].first;
         int oldPosNumIndex = move.positions[i].second;
-        
+
         int newPosLetIndex = oldPosLetIndex + DirectionHelper::getDelta(move.direction).first;
         int newPosNumIndex = oldPosNumIndex + DirectionHelper::getDelta(move.direction).second;
-        
-        oldPositions.emplace_back(oldPosLetIndex, oldPosNumIndex);
-        newPositions.emplace_back(newPosLetIndex, newPosNumIndex);
-    
+
         gameboard[newPosLetIndex][newPosNumIndex] = gameboard[oldPosLetIndex][oldPosNumIndex];
         gameboard[oldPosLetIndex][oldPosNumIndex] = 0;
     }
-
-    updateAdjacencyForMove(oldPositions, newPositions);
 }
-
-/** 
- * --------------------------------------------------------------------------------
- * Adjacency Matrix
- * --------------------------------------------------------------------------------
- */ 
 
 void Board::initializeAdjacencyMatrix()
 {
-    std::cout << "INIT ADJACENCY MATRIX" << std::endl;
-
     coordToIndex.clear();
     indexToCoord.clear();
 
@@ -225,83 +181,13 @@ void Board::initializeAdjacencyMatrix()
     }
 }
 
-void Board::updateAdjacencyForMove(const std::vector<std::pair<int, int>> &oldPositions, const std::vector<std::pair<int, int>> &newPositions)
-{
-    for (const auto& pos : oldPositions) {
-        if (coordToIndex.count(pos)) {
-            updateAdjacencyAt(coordToIndex[pos]);
-        }
-    }
-
-    for (const auto& pos : newPositions) {
-        if (coordToIndex.count(pos)) {
-            updateAdjacencyAt(coordToIndex[pos]);
-        }
-    }
-}
-
-void Board::updateAdjacencyAt(int idx)
-{
-    auto [i, j] = indexToCoord[idx];
-    for (int k = 0; k < indexToCoord.size(); ++k) {
-        adjacencyMatrix[idx][k] = false;
-        adjacencyMatrix[k][idx] = false;
-    }
-
-    std::vector<std::pair<int, int>> directions = {
-        {-1, 0}, {-1, 1}, {0, 1},
-        {1, 0}, {1, -1}, {0, -1}
-    };
-
-    for (auto [di, dj] : directions) {
-        auto neighbor = std::make_pair(i + di, j + dj);
-        if (coordToIndex.count(neighbor)) {
-            int neighborIdx = coordToIndex[neighbor];
-            adjacencyMatrix[idx][neighborIdx] = true;
-            adjacencyMatrix[neighborIdx][idx] = true;
-        }
-    }
-}
-
-std::map<std::pair<int, int>, int> Board::coordToIndex;
-std::vector<std::pair<int, int>> Board::indexToCoord;
-
-bool Board::staticMappingInitialized = false;
-
-
-void Board::initializeStaticAdjacencyMapping() {
-
-    std::cout << "INIT ADJACENCY MAP" << std::endl;
-    if (staticMappingInitialized) return;
-
-    int index = 0;
-    for (int i = 0; i < ROWS; ++i) {
-        for (int j = 0; j < COLS; ++j) {
-            if (gameboard[i][j] != -1) {
-                coordToIndex[{i, j}] = index;
-                indexToCoord.push_back({i, j});
-                index++;
-            }
-        }
-    }
-
-    staticMappingInitialized = true;
-}
-
-
-
-/** 
- * --------------------------------------------------------------------------------
- * Helper Methods
- * --------------------------------------------------------------------------------
- */ 
-
 const bool Board::validPosition(const int letterIndex, const int numberIndex) const
 {
     return ((letterIndex >= 0 && letterIndex < ROWS) 
         && (numberIndex >= 0 && numberIndex < COLS))
         && (gameboard[letterIndex][numberIndex] >= 0);
 }
+
 
 
 /** 
