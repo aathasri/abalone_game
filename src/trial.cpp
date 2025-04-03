@@ -753,21 +753,20 @@ int evaluateBoard(const std::string& boardState, CellState player) {
 
     int h1 = centerProximity(boardState, player); // h1: Center Proximity
     int h2 = cohesion(boardState, player);       // h2: Cohesion
-    int h3 = marblesOnBoard(boardState, player);  // h3: Marbles on Board
+    // int h3 = marblesOnBoard(boardState, player);  // h3: Marbles on Board
     int h4 = opponentMarblesPushed(boardState, player);
     int h5 = -(14 - std::count(boardState.begin(), boardState.end(), playerChar));
 
 
     // std::cout << "h1 h2 h3: " << h1 << " " << h2 << " " << h3 << "\n" <<std::endl;
-    int w1 = 1;
-    int w2 = 10;
-    int w3 = 50;
+    int w1 = 15;
+    int w2 = 65;
+    // int w3 = 50;
     int w4 = 200;
-    int w5 = 150;  // Strong penalty for losing marbles
-    // std::cout << "eval: " << w1*h1 + w2*h2 + w3*h3 << "\n";
-    return w1*h1 + w2*h2 + w3*h3 + w4*h4 + w5*h5;
-    // std::cout << "h3: " << h3 << "\n";
-    // return h3;
+    int w5 = 150;
+    // return w1*h1 + w2*h2 + w3*h3 + w4*h4 + w5*h5;
+    return w1*h1 + w2*h2 + w4*h4 + w5*h5;
+
 }
 
 
@@ -1008,8 +1007,8 @@ int main() {
         inputFile.close();
 
         auto end = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::seconds>(end - start);
-        std::cout << "Move took " << duration.count() << " seconds)" << std::endl;
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+        std::cout << "Move took " << duration.count() << " ms)" << std::endl;
     }
 
     std::cout << "Max number of moves reached" << std::endl;
