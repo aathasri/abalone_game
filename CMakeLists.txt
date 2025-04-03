@@ -20,7 +20,8 @@ set(SOURCES
         src/board_generator.cpp
         src/heuristic_calculator.cpp
         src/minimax.cpp
-        # ./settings.cpp
+        src/settings.cpp
+        src/game.cpp
 )
 
 # Add the header files (optional, for IDEs)
@@ -31,7 +32,8 @@ set(HEADERS
         include/board_generator.h
         include/heuristic_calculator.h
         include/minimax.h
-        # ./settings.h
+        include/settings.h
+        include/game.h
 )
 
 # Create the executable

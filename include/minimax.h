@@ -12,6 +12,7 @@
 #include <limits>
 #include <algorithm>
 #include <iostream>
+#include <memory>
 
 class Minimax {
 public:

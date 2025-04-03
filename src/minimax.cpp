@@ -1,11 +1,5 @@
 #include "minimax.h"
-#include "heuristic_calculator.h"
-#include "move_generator.h"
-#include "board_generator.h"
-#include <iostream>
-#include <limits>
-#include <algorithm>
-#include <memory>
+
 
 Minimax::Minimax(int maxDepth) : maxDepth(maxDepth) {}
 
