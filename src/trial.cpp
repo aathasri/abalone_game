@@ -923,26 +923,28 @@ int main() {
             }
             std::cout << "AI chose move: " << selectedMove << std::endl;
         } else {
-            // User input for the other player
-            std::cout << "Your turn: ";
-            std::cout << "Your turn! Legal moves: ";
-            for (const auto& move : legalMoves) {
-                std::cout << move << " ";
-            }
-            std::cout << "\nEnter your move: ";
-            std::cin >> selectedMove;
-            // Validate and apply the move
-            if (std::find(legalMoves.begin(), legalMoves.end(), selectedMove) != legalMoves.end()) {
-                auto boardState = parseBoardFromString(board.boardToString());
-                applyMove(boardState, selectedMove);
-                selectedBoard = boardToString(boardState);
-                board = AbaloneBoard();
-                for (const auto& [pos, color] : boardState) {
-                    board.setCellState(pos, color == 'b' ? CellState::BLACK : CellState::WHITE);
+            bool validMove = false;
+            while (!validMove) {
+                std::cout << "Your turn! Legal moves: ";
+                for (const auto& move : legalMoves) {
+                    std::cout << move << " ";
                 }
-            } else {
-                std::cout << "Invalid move! Game ends." << std::endl;
-                return 1;
+                std::cout << "\nEnter your move: ";
+                std::cin >> selectedMove;
+
+                // Check if the move is valid
+                if (std::find(legalMoves.begin(), legalMoves.end(), selectedMove) != legalMoves.end()) {
+                    validMove = true; // Exit loop if valid
+                    auto boardState = parseBoardFromString(board.boardToString());
+                    applyMove(boardState, selectedMove);
+                    selectedBoard = boardToString(boardState);
+                    board = AbaloneBoard();
+                    for (const auto& [pos, color] : boardState) {
+                        board.setCellState(pos, color == 'b' ? CellState::BLACK : CellState::WHITE);
+                    }
+                } else {
+                    std::cout << "Invalid move! Please try again.\n";
+                }
             }
         }
 
