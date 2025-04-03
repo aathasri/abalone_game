@@ -20,18 +20,18 @@ public:
     // MoveGenerator();
 
     // Generate all valid moves given a board
-    void generateMoves(int turnColour, Board& currentBoard);
+    void generateMoves(int currPlayer, const Board& currentBoard);
 
     // store the pieces, their orientation, the direction
-    std::set<Move> getGeneratedMoves();
+    const std::set<Move>& getGeneratedMoves() const;
 
     // Converts Pieces and Direciton into Move Notation
     // static std::string encodeNotation(std::vector<std::string>& pieces, std::string& direction);
 
-    void printMoves();
+    void printMoves() const;
 
 private:
-    bool potentialPushPositionValid(int i, int j, Board& currentBoard);
+    bool potentialPushPositionValid(int i, int j, const Board& currentBoard);
 };
 
 #endif // MOVE_GENERATOR_H

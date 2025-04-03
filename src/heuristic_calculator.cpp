@@ -1,6 +1,6 @@
 #include "heuristic_calculator.h"
 
-Board HeuristicCalculator::selectBoard(std::vector<Board> generatedBoards)
+Board HeuristicCalculator::selectBoard(std::vector<Board> generatedBoards) const
 {
     Board& bestBoard = generatedBoards[0];
     int bestHeuristic = 0;
@@ -18,7 +18,10 @@ Board HeuristicCalculator::selectBoard(std::vector<Board> generatedBoards)
     return bestBoard;
 }
 
-int HeuristicCalculator::calculateHeuristic(Board b) {
+int HeuristicCalculator::calculateHeuristic(Board b)
+{
+    auto start = std::chrono::high_resolution_clock::now();
+
     int p1 = 1;
     int p2 = 2;
 
@@ -31,6 +34,10 @@ int HeuristicCalculator::calculateHeuristic(Board b) {
     score += 15 * (lineAlignment(p1, b) - lineAlignment(p2, b));
     score += 25 * marbleDifference(p1, b);
     score += 8  * (centerProximity(p1, b) - centerProximity(p2, b));
+
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    // std::cout << "Heuristic took " << duration.count() << " microseconds\n";
 
     return score;
 }

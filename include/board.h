@@ -6,6 +6,8 @@
 #include <vector>
 #include <map>
 #include <sstream>
+#include <random>
+#include <chrono>
 
 #include "move.h"
 
@@ -34,12 +36,14 @@ private:
 
     // The adjacency matrix: adjacencyMatrix[i][j] is true if i and j are adjacent
     std::vector<std::vector<bool>> adjacencyMatrix;
-
     // Maps a board coordinate (i, j) to a linear index (for the matrix)
-    std::map<std::pair<int, int>, int> coordToIndex;
-
+    static std::map<std::pair<int, int>, int> coordToIndex; // <-- initialize when creating board for different board configuations
     // Maps back from index to coordinate (to use in logic)
-    std::vector<std::pair<int, int>> indexToCoord;
+    static std::vector<std::pair<int, int>> indexToCoord; // <-- initialize when creating board for different board configuations
+
+    static std::array<std::array<std::array<uint64_t, 3>, COLS>, ROWS> zobristTable;
+    static bool zobristInitialized;
+
 
 public:
     // Constructor
@@ -47,20 +51,26 @@ public:
 
     // Getters
     // TODO - MAKE GETTERS CONSTANT
-    const std::array<std::array<int, COLS>, ROWS>& getBoard()const;
+    const std::array<std::array<int, COLS>, ROWS>& getBoard() const;
     const std::vector<std::vector<bool>>& getAdjacencyMatrix() const;
     const std::vector<std::pair<int, int>>& getIndexToCoord() const;
-    int getNumPlayerOnePieces() const;
-    int getNumPlayerTwoPieces() const;
+    const int& getNumPlayerOnePieces() const;
+    const int& getNumPlayerTwoPieces() const;
 
     // Function to place pieces on the board
     void placePieces(const std::vector<std::string>& pieces);
 
     // Apply a valid move to the board
-    void applyMove(const Move move);
+    void applyMove(const Move& move);
 
     // Validate a position on board
-    bool validPosition(const int letterIndex, const int numberIndex);
+    const bool validPosition(const int letterIndex, const int numberIndex) const;
+
+    // For Hashing - transposition table
+    static void initZobrist();
+    uint64_t getZobristHash() const;
+    bool operator==(const Board& other) const;
+
 
     // Printing
     void printPieces() const;
@@ -72,11 +82,11 @@ public:
 
 private:
 
-    void moveOnePiece(const Move move);
+    void moveOnePiece(const Move& move);
 
-    void movePiecesInline(const Move move);
+    void movePiecesInline(const Move& move);
 
-    void movePiecesSideStep(const Move move);
+    void movePiecesSideStep(const Move& move);
 
     void initializeAdjacencyMatrix(); // builds the adjacency matrix
 
@@ -86,37 +96,14 @@ private:
     // helper to remove/update a node's connections
     void updateAdjacencyAt(int idx);
 
-    // bool isHorizintal(const std::vector<std::string>& pieces);
+    void initializeStaticAdjacencyMapping();
 
-    // bool isBackwardSloping(const std::vector<std::string>& pieces);
+};
 
-    // bool isForwardSloping(const std::vector<std::string>& pieces);
-
-    // // Move a piece E
-    // void moveE(std::vector<std::string>& pieces);
-
-    // // Move a piece NE
-    // void moveNE(std::vector<std::string>& pieces);
-
-    // // Move a piece NW
-    // void moveNW(std::vector<std::string>& pieces);
-
-    // // Move a piece W
-    // void moveW(std::vector<std::string>& pieces);
-    
-    // // Move a piece SW
-    // void moveSW(std::vector<std::string>& pieces);
-
-    // // Move a piece SE
-    // void moveSE(std::vector<std::string>& pieces);
-
-    // void moveOnePiece(const std::string& move);
-
-    // void movePiecesInline(const std::vector<std::string>& pieces, const std::string& move);
-
-    // void movePieceSideStep(const std::vector<std::string>& pieces, const std::string& move);
-
-    // void sortMovePieces(std::vector<std::string>& pieces);
+struct BoardHasher {
+    std::size_t operator()(const Board& b) const {
+        return static_cast<std::size_t>(b.getZobristHash());
+    }
 };
 
 #endif // BOARD_H

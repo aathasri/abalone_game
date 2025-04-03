@@ -3,16 +3,14 @@
 #include "move_generator.h"
 #include "board_generator.h"
 #include "heuristic_calculator.h"
+#include "minimax.h"  // include your minimax class
 
 #include <iostream>
 #include <vector>
 #include <set>
-
-// transposition tables -> zobaras hashing?
-// move ordering - ascending and descending
+#include <chrono>
 
 int main() {
-
     std::array<std::array<int, COLS>, ROWS> blankBoard = {{
         {-1, -1, -1, -1,  0,  0,  0,  0,  0},
         {-1, -1, -1,  0,  0,  0,  0,  0,  0},
@@ -25,41 +23,36 @@ int main() {
         { 0,  0,  0,  0,  0, -1, -1, -1, -1}
     }};
 
-
     Board gameBoard(blankBoard);  // Create Board object
 
-    
     std::string piecesString = "C5b,D5b,E4b,E5b,E6b,F5b,F6b,F7b,F8b,G6b,H6b,C3w,C4w,D3w,D4w,D6w,E7w,F4w,G5w,G7w,G8w,G9w,H7w,H8w,H9w";
-
     std::vector<std::string> boardPieces = Board::stringToList(piecesString);
-
     gameBoard.placePieces(boardPieces);
+
+    std::cout << "Current Board:\n";
     gameBoard.printBoard();
 
+    // Run Minimax to get the best move
+    Minimax ai(3);
+    int currentPlayer = 1;
 
-    // Generate Moves
-    MoveGenerator moveGen = MoveGenerator();
-    moveGen.generateMoves(1, gameBoard);
+    auto start = std::chrono::high_resolution_clock::now();
 
-    // moveGen.printMoves();
+    Move bestMove = ai.findBestMove(gameBoard, currentPlayer);
 
-    std::set<Move> generatedMoves = moveGen.getGeneratedMoves();
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
 
-    std::cout << generatedMoves.size() << std::endl;
+    std::cout << "\nBest Move Selected:\n";
+    bestMove.printString();
 
-    // Generate Boards
-    BoardGenerator boardGen = BoardGenerator();
-    boardGen.generateBoards(gameBoard, generatedMoves);
-    boardGen.printBoards();
-    std::vector<Board> generatedBoards = boardGen.getGeneratedBoards();
+    std::cout << "Minimax took " << duration.count() << " ms\n";
 
+    // Apply move and show new board
+    gameBoard.applyMove(bestMove);
 
-    HeuristicCalculator heuristicCal = HeuristicCalculator();
-    Board result = heuristicCal.selectBoard(generatedBoards);
-
-    result.printPieces();
-
-
+    std::cout << "\nBoard After Move:\n";
+    gameBoard.printBoard();
 
     return 0;
 }

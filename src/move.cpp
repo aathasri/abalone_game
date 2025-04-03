@@ -37,11 +37,11 @@ const std::array<std::pair<int, int>, static_cast<int>(MoveDirection::COUNT)> Di
     std::make_pair(1, -1)   // SW
 };
 
-std::pair<int, int> DirectionHelper::getDelta(MoveDirection dir) {
+const std::pair<int, int>& DirectionHelper::getDelta(MoveDirection dir) {
     return directionArray[static_cast<int>(dir)];
 }
 
-std::pair<int, int> DirectionHelper::getDelta(int dir) {
+const std::pair<int, int>& DirectionHelper::getDelta(int dir) {
     return directionArray[dir];
 }
 
@@ -86,6 +86,8 @@ std::ostream& operator<<(std::ostream& os, MoveType type) {
  * Move Class
  * --------------------------------------------------------------------------------
  */ 
+
+ Move::Move() {}
 
  Move::Move(MoveType typ, MoveDirection dir)
  : type(typ), direction(dir), size(0), positions{} {}

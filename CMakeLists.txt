@@ -15,6 +15,7 @@ set(SOURCES
         src/move_generator.cpp
         src/board_generator.cpp
         src/heuristic_calculator.cpp
+        src/minimax.cpp
         # ./settings.cpp
 )
 
@@ -25,6 +26,7 @@ set(HEADERS
         include/move_generator.h
         include/board_generator.h
         include/heuristic_calculator.h
+        include/minimax.h
         # ./settings.h
 )
 

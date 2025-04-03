@@ -6,6 +6,7 @@
 #include <queue>
 #include <cmath>
 #include <set>
+#include <chrono>
 
 class HeuristicCalculator {
 
@@ -13,11 +14,12 @@ private:
 
 public:
 
-    Board selectBoard(std::vector<Board> generatedBoards);
+    Board selectBoard(std::vector<Board> generatedBoards) const;
+
+    static int calculateHeuristic(Board b);
 
 private:
 
-    static int calculateHeuristic(Board b);
     static int marbleDifference(int player, const Board& b);  // Difference in marble count
     static int centerProximity(int player, const Board& b);   // Measures how close the player's marbles are to the center
     static int groupCohesion(int player, const Board& b);     // Measures how many same-colored adjacent pairs exist

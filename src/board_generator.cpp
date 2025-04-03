@@ -1,22 +1,25 @@
 #include "board_generator.h"
 
-void BoardGenerator::generateBoards(Board& currBoard, std::set<Move>& moves)
+void BoardGenerator::generateBoards(const Board& currBoard, const std::set<Move>& moves)
 {
-    for (Move m : moves) {
-        Board b = currBoard;
-        b.applyMove(m);
-        GeneratedBoards.push_back(b);
+    GeneratedBoards.clear();
+    GeneratedBoards.reserve(moves.size());
+
+    for (const Move& m : moves) {
+        auto b = std::make_unique<Board>(currBoard);
+        b->applyMove(m);
+        GeneratedBoards.push_back(std::move(b));
     }
 }
 
-std::vector<Board> BoardGenerator::getGeneratedBoards()
+const std::vector<std::unique_ptr<Board>>& BoardGenerator::getGeneratedBoards() const
 {
     return GeneratedBoards;
 }
 
-void BoardGenerator::printBoards()
+void BoardGenerator::printBoards() const
 {
-    for (Board b : GeneratedBoards) {
-        b.printPieces();
+    for (const auto& b : GeneratedBoards) {
+        b->printPieces();
     }
 }

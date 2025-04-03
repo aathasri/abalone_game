@@ -24,8 +24,8 @@ class DirectionHelper {
         static const std::array<std::pair<int, int>, static_cast<int>(MoveDirection::COUNT)> directionArray;
     
     public:
-        static std::pair<int, int> getDelta(MoveDirection dir);
-        static std::pair<int, int> getDelta(int dir);
+        static const std::pair<int, int>& getDelta(MoveDirection dir);
+        static const std::pair<int, int>& getDelta(int dir);
         static std::vector<std::pair<MoveDirection, MoveDirection>> getPerpendiculars(MoveDirection dir);
     };
 
@@ -44,15 +44,16 @@ class Move {
         std::array<std::pair<int, int>, 3> positions;
     
     public:
+        Move();
         Move(MoveType type, MoveDirection direction);
     
         void addPosition(int col, int row);
         void copyMovePositions(const Move& other);
         bool operator<(const Move& other) const;
     
-        int getSize() const { return size; }
-        MoveType getType() const { return type; }
-        MoveDirection getDirection() const { return direction; }
+        const int& getSize() const { return size; }
+        const MoveType& getType() const { return type; }
+        const MoveDirection& getDirection() const { return direction; }
         const std::pair<int, int>& getPosition(int index) const { return positions[index]; }
     
         void printString() const;

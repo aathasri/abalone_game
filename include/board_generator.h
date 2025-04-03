@@ -1,30 +1,22 @@
 #ifndef BOARD_GENERATOR_H
 #define BOARD_GENERATOR_H
 
+#include <vector>
+#include <memory>
+#include <set>
 #include "board.h"
 #include "move.h"
-#include "move_generator.h"
-
-#include <iostream>
-#include <array>
-#include <vector>
-#include <set>
 
 class BoardGenerator {
-
 private:
-
-std::vector<Board> GeneratedBoards;
+    std::vector<std::unique_ptr<Board>> GeneratedBoards;
 
 public:
-    void generateBoards(Board& currBoard, std::set<Move>& moves);
+    void generateBoards(const Board& currBoard, const std::set<Move>& moves);
 
-    std::vector<Board> getGeneratedBoards();
+    const std::vector<std::unique_ptr<Board>>& getGeneratedBoards() const;
 
-    void printBoards();
-
-private:
-    
+    void printBoards() const;
 };
 
 #endif // BOARD_GENERATOR_H

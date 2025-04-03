@@ -9,6 +9,7 @@ Board::Board(const std::array<std::array<int, COLS>, ROWS>& matrix)
     : gameboard(matrix), numPlayerOnePieces(14), numPlayerTwoPieces(14) 
 {
     initializeAdjacencyMatrix();
+    initializeStaticAdjacencyMapping();
 }
 
 const std::array<std::array<int, COLS>, ROWS>& Board::getBoard() const
@@ -25,12 +26,12 @@ const std::vector<std::pair<int, int>>& Board::getIndexToCoord() const {
     return indexToCoord;
 }
 
-int Board::getNumPlayerOnePieces() const
+const int& Board::getNumPlayerOnePieces() const
 {
     return numPlayerOnePieces;
 }
 
-int Board::getNumPlayerTwoPieces() const
+const int& Board::getNumPlayerTwoPieces() const
 {
     return numPlayerTwoPieces;
 }
@@ -67,7 +68,7 @@ void Board::placePieces(const std::vector<std::string> &pieces)
  * Apply Moves
  * --------------------------------------------------------------------------------
  */ 
-void Board::applyMove(const Move move)
+void Board::applyMove(const Move& move)
 {
     if (move.size == 1) {
         moveOnePiece(move);
@@ -78,7 +79,7 @@ void Board::applyMove(const Move move)
     }
 }
 
-void Board::moveOnePiece(const Move move)
+void Board::moveOnePiece(const Move& move)
 {
     int oldPosLetIndex = move.positions[0].first;
     int oldPosNumIndex = move.positions[0].second;
@@ -91,7 +92,7 @@ void Board::moveOnePiece(const Move move)
     updateAdjacencyForMove({{oldPosLetIndex, oldPosNumIndex}}, {{newPosLetIndex, newPosNumIndex}});
 }
 
-void Board::movePiecesInline(const Move move)
+void Board::movePiecesInline(const Move& move)
 {
     auto [dx, dy] = DirectionHelper::getDelta(move.getDirection());
 
@@ -155,7 +156,7 @@ void Board::movePiecesInline(const Move move)
 }
 
 
-void Board::movePiecesSideStep(const Move move)
+void Board::movePiecesSideStep(const Move& move)
 {
     std::vector<std::pair<int, int>> oldPositions, newPositions;
 
@@ -254,18 +255,79 @@ void Board::updateAdjacencyAt(int idx)
     }
 }
 
+std::map<std::pair<int, int>, int> Board::coordToIndex;
+std::vector<std::pair<int, int>> Board::indexToCoord;
+
+void Board::initializeStaticAdjacencyMapping() {
+    int index = 0;
+    for (int i = 0; i < ROWS; ++i) {
+        for (int j = 0; j < COLS; ++j) {
+            if (gameboard[i][j] != -1) {
+                coordToIndex[{i, j}] = index;
+                indexToCoord.push_back({i, j});
+                index++;
+            }
+        }
+    }
+}
+
+
+
+
 /** 
  * --------------------------------------------------------------------------------
  * Helper Methods
  * --------------------------------------------------------------------------------
  */ 
 
-bool Board::validPosition(const int letterIndex, const int numberIndex)
+const bool Board::validPosition(const int letterIndex, const int numberIndex) const
 {
     return ((letterIndex >= 0 && letterIndex < ROWS) 
         && (numberIndex >= 0 && numberIndex < COLS))
         && (gameboard[letterIndex][numberIndex] >= 0);
 }
+
+
+/** 
+ * --------------------------------------------------------------------------------
+ * Hashing
+ * --------------------------------------------------------------------------------
+ */ 
+
+bool Board::zobristInitialized = false;
+std::array<std::array<std::array<uint64_t, 3>, COLS>, ROWS> Board::zobristTable;
+
+void Board::initZobrist() {
+    std::mt19937_64 rng(std::chrono::steady_clock::now().time_since_epoch().count());
+    std::uniform_int_distribution<uint64_t> dist;
+
+    for (int i = 0; i < ROWS; ++i)
+        for (int j = 0; j < COLS; ++j)
+            for (int p = 0; p < 3; ++p)
+                zobristTable[i][j][p] = dist(rng);
+
+    zobristInitialized = true;
+}
+
+uint64_t Board::getZobristHash() const {
+    if (!zobristInitialized) initZobrist();
+
+    uint64_t hash = 0;
+    for (int i = 0; i < ROWS; ++i) {
+        for (int j = 0; j < COLS; ++j) {
+            int piece = gameboard[i][j];
+            if (piece >= 0) {
+                hash ^= zobristTable[i][j][piece];
+            }
+        }
+    }
+    return hash;
+}
+
+bool Board::operator==(const Board& other) const {
+    return gameboard == other.gameboard;
+}
+
 
 /** 
  * --------------------------------------------------------------------------------

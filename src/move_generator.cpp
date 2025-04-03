@@ -1,6 +1,6 @@
 #include "move_generator.h"
 
-void MoveGenerator::generateMoves(int currentPlayerColour, Board& currentBoard)
+void MoveGenerator::generateMoves(int currentPlayerColour, const Board& currentBoard)
 {
     const std::array<std::array<int, COLS>, ROWS>& board = currentBoard.getBoard();
 
@@ -157,19 +157,19 @@ void MoveGenerator::generateMoves(int currentPlayerColour, Board& currentBoard)
     }
 }
 
-std::set<Move> MoveGenerator::getGeneratedMoves()
+const std::set<Move>& MoveGenerator::getGeneratedMoves() const
 {
     return generated_moves;
 }
 
-void MoveGenerator::printMoves()
+void MoveGenerator::printMoves() const
 {
     for (const auto& move : generated_moves) {
         move.printString();
     }
 }
 
-bool MoveGenerator::potentialPushPositionValid(int i, int j, Board &currentBoard)
+bool MoveGenerator::potentialPushPositionValid(int i, int j, const Board &currentBoard)
 {
     // the index is off the board OR the index is on the board nad -1 or 0
     const std::array<std::array<int, COLS>, ROWS>& board = currentBoard.getBoard();
