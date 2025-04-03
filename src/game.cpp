@@ -20,8 +20,15 @@ std::array<std::array<int, COLS>, ROWS> Game::generateStandardBoard()
 {
     std::map<PlayerColour, int> colourMap = settings.getPlayerColourMap();
 
+    std::cout << "Map size: " << colourMap.size() << std::endl;
+    for (const auto& [color, num] : colourMap) {
+        std::cout << "Color: " << (color == PlayerColour::BLACK ? "BLACK" : "WHITE") << ", Player: " << num << std::endl;
+    }
+
     int bP = colourMap.at(PlayerColour::BLACK);
     int wP = colourMap.at(PlayerColour::WHITE);
+
+    std::cout << wP << " , " << bP << std::endl;
 
     std::array<std::array<int, COLS>, ROWS> blankBoard = {{
         {-1, -1, -1, -1, wP, wP, wP, wP, wP},
@@ -34,6 +41,8 @@ std::array<std::array<int, COLS>, ROWS> Game::generateStandardBoard()
         {bP, bP, bP, bP, bP, bP, -1, -1, -1},
         {bP, bP, bP, bP, bP, -1, -1, -1, -1}
     }};
+    
+    return blankBoard;
 }
 
 std::array<std::array<int, COLS>, ROWS> Game::generateGermanBoard()
@@ -54,6 +63,8 @@ std::array<std::array<int, COLS>, ROWS> Game::generateGermanBoard()
         {bP, bP,  0,  0, wP, wP, -1, -1, -1},
         { 0,  0,  0,  0,  0, -1, -1, -1, -1}
     }};
+
+    return blankBoard;
 }
 
 std::array<std::array<int, COLS>, ROWS> Game::generateBelgianBoard()
@@ -74,6 +85,8 @@ std::array<std::array<int, COLS>, ROWS> Game::generateBelgianBoard()
         {bP, bP, bP, wP, wP, wP, -1, -1, -1},
         {bP, bP,  0, wP, wP, -1, -1, -1, -1}
     }};
+
+    return blankBoard;
 }
 
 Board Game::initializeBoard()
@@ -90,6 +103,8 @@ Board Game::initializeBoard()
 void Game::play() {
     std::cout << "Starting Game:\n\n";
     board.printBoard();
+
+    std::cout << "Board Made :\n\n";
 
     bool gameRunning = true;
 
