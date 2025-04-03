@@ -2,7 +2,7 @@
 
 Board HeuristicCalculator::selectBoard(std::vector<Board> generatedBoards) const
 {
-    Board& bestBoard = generatedBoards[0];
+    Board bestBoard = generatedBoards[0];
     int bestHeuristic = 0;
 
     for (Board& b : generatedBoards) {
@@ -19,11 +19,17 @@ Board HeuristicCalculator::selectBoard(std::vector<Board> generatedBoards) const
 }
 
 int HeuristicCalculator::calculateHeuristic(const Board& b) {
-    auto start = std::chrono::high_resolution_clock::now();
+    // auto start = std::chrono::high_resolution_clock::now();  // ⏱️ Start timing
 
     const auto& board = b.getBoard();
     const auto& adj = b.getAdjacencyMatrix();
     const auto& coords = b.getIndexToCoord();
+    const auto& coordToIndex = Board::getCoordToIndex();
+
+    if (coords.size() != adj.size()) {
+        std::cerr << "[ERROR] coords and adj size mismatch\n";
+        return 0;
+    }
 
     int cohesion[3] = {};         
     int pushPotential[3] = {};
@@ -35,9 +41,8 @@ int HeuristicCalculator::calculateHeuristic(const Board& b) {
     int centerY = COLS / 2;
 
     for (int i = 0; i < coords.size(); ++i) {
+        if (i >= adj.size()) continue;
         auto [x, y] = coords[i];
-        if (x < 0 || x >= ROWS || y < 0 || y >= COLS) continue;
-
         int player = board[x][y];
         if (player != 1 && player != 2) continue;
 
@@ -47,12 +52,9 @@ int HeuristicCalculator::calculateHeuristic(const Board& b) {
         int allies = 0, enemies = 0;
 
         for (int j = 0; j < adj[i].size(); ++j) {
-            if (!adj[i][j]) continue;
-            if (j >= coords.size()) continue;
+            if (!adj[i][j] || j >= coords.size()) continue;
 
             auto [nx, ny] = coords[j];
-            if (nx < 0 || nx >= ROWS || ny < 0 || ny >= COLS) continue;
-
             int neighbor = board[nx][ny];
 
             if (neighbor == player) {
@@ -76,12 +78,12 @@ int HeuristicCalculator::calculateHeuristic(const Board& b) {
     score += 10 * (isolated[p2] - isolated[p1]);
     score += 8  * (proximity[p1] - proximity[p2]);
     score += 20 * (groupingAdvantage(p1, b) - groupingAdvantage(p2, b));
-    // score += 15 * (lineAlignment(p1, b) - lineAlignment(p2, b));
+    score += 15 * (lineAlignment(p1, b) - lineAlignment(p2, b));
     score += 25 * marbleDifference(p1, b);
 
-    auto end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-    std::cout << "Heuristic took " << duration.count() << " microseconds\n";
+    // auto end = std::chrono::high_resolution_clock::now();  // ⏱️ End timing
+    // auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    // std::cout << "Heuristic took " << duration.count() << " microseconds\n";
 
     return score;
 }
@@ -96,15 +98,18 @@ int HeuristicCalculator::groupingAdvantage(int player, const Board& b) {
     const auto& adj = b.getAdjacencyMatrix();
     const auto& board = b.getBoard();
     const auto& coords = b.getIndexToCoord();
-    int n = adj.size();
 
-    std::vector<bool> visited(n, false);
+    if (coords.size() != adj.size()) {
+        std::cerr << "[ERROR] coords and adj size mismatch in groupingAdvantage\n";
+        return 0;
+    }
+
+    std::vector<bool> visited(coords.size(), false);
     int groupsWithMajority = 0;
 
-    for (int i = 0; i < n; ++i) {
-        if (visited[i]) continue;
+    for (int i = 0; i < coords.size(); ++i) {
+        if (i >= adj.size() || visited[i]) continue;
         auto [x, y] = coords[i];
-        if (x < 0 || x >= ROWS || y < 0 || y >= COLS) continue;
         if (board[x][y] <= 0) continue;
 
         std::queue<int> q;
@@ -114,62 +119,53 @@ int HeuristicCalculator::groupingAdvantage(int player, const Board& b) {
 
         while (!q.empty()) {
             int curr = q.front(); q.pop();
+            if (curr >= coords.size() || curr >= adj.size()) continue;
             auto [cx, cy] = coords[curr];
-            if (cx < 0 || cx >= ROWS || cy < 0 || cy >= COLS) continue;
-
             int color = board[cx][cy];
             if (color == player) playerCount++;
             else if (color == 3 - player) oppCount++;
 
-            for (int j = 0; j < n; ++j) {
+            for (int j = 0; j < adj[curr].size(); ++j) {
                 if (!visited[j] && adj[curr][j]) {
-                    auto [nx, ny] = coords[j];
-                    if (nx < 0 || nx >= ROWS || ny < 0 || ny >= COLS) continue;
-                    if (board[nx][ny] > 0) {
-                        visited[j] = true;
-                        q.push(j);
-                    }
+                    visited[j] = true;
+                    q.push(j);
                 }
             }
         }
+
         if (playerCount > oppCount) groupsWithMajority++;
     }
+
     return groupsWithMajority;
 }
 
 int HeuristicCalculator::lineAlignment(int player, const Board& b) {
     const auto& board = b.getBoard();
     const auto& coords = b.getIndexToCoord();
-    const auto& adj = b.getAdjacencyMatrix();
+    const auto& coordToIndex = Board::getCoordToIndex();
+
+    std::set<std::string> countedGroups;
     int aligned = 0;
 
-    std::set<std::set<int>> countedGroups;
-
-    for (int i = 0; i < adj.size(); ++i) {
+    for (int i = 0; i < coords.size(); ++i) {
         auto [x1, y1] = coords[i];
-        if (x1 < 0 || x1 >= ROWS || y1 < 0 || y1 >= COLS) continue;
         if (board[x1][y1] != player) continue;
 
-        for (int j = 0; j < adj[i].size(); ++j) {
-            if (!adj[i][j]) continue;
-            auto [x2, y2] = coords[j];
-            if (x2 < 0 || x2 >= ROWS || y2 < 0 || y2 >= COLS) continue;
-            if (board[x2][y2] != player) continue;
+        for (const auto& [dx, dy] : std::vector<std::pair<int, int>>{
+            {-1, 0}, {-1, 1}, {0, 1}, {1, 0}, {1, -1}, {0, -1}}) {
 
-            int dx = x2 - x1, dy = y2 - y1;
-            int tx = x2 + dx, ty = y2 + dy;
+            int x2 = x1 + dx, y2 = y1 + dy;
+            int x3 = x2 + dx, y3 = y2 + dy;
 
-            if (tx >= 0 && tx < ROWS && ty >= 0 && ty < COLS) {
-                for (int l = 0; l < coords.size(); ++l) {
-                    if (coords[l] == std::make_pair(tx, ty) && board[tx][ty] == player) {
-                        std::set<int> group = { i, j, l };
-                        if (countedGroups.insert(group).second) {
-                            aligned++;
-                        }
-                    }
-                }
+            if (coordToIndex.count({x2, y2}) && coordToIndex.count({x3, y3}) &&
+                board[x2][y2] == player && board[x3][y3] == player) {
+                std::ostringstream oss;
+                oss << x1 << "," << y1 << "-" << x2 << "," << y2 << "-" << x3 << "," << y3;
+                std::string key = oss.str();
+                if (countedGroups.insert(key).second) aligned++;
             }
         }
     }
+
     return aligned;
 }

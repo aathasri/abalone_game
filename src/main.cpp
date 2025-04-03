@@ -33,7 +33,7 @@ int main() {
     gameBoard.printBoard();
 
     // Run Minimax to get the best move
-    Minimax ai(3);
+    Minimax ai(4);
     int currentPlayer = 1;
 
     auto start = std::chrono::high_resolution_clock::now();

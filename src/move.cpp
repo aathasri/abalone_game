@@ -49,14 +49,16 @@ std::vector<std::pair<MoveDirection, MoveDirection>> DirectionHelper::getPerpend
     switch (dir) {
         case MoveDirection::E:
         case MoveDirection::W:
-            return {{MoveDirection::NW, MoveDirection::SW}, 
-                    {MoveDirection::NE, MoveDirection::SE}};
+            return {{MoveDirection::NW, MoveDirection::SE}, 
+                    {MoveDirection::NE, MoveDirection::SW}};
         case MoveDirection::NW:
         case MoveDirection::SE:
-            return {{MoveDirection::W, MoveDirection::E}};
+            return {{MoveDirection::W, MoveDirection::E}, 
+                    {MoveDirection::NE, MoveDirection::SW}};
         case MoveDirection::NE:
         case MoveDirection::SW:
-            return {{MoveDirection::W, MoveDirection::E}};
+            return {{MoveDirection::W, MoveDirection::E}, 
+                    {MoveDirection::NW, MoveDirection::SE}};
         default:
             return {};
     }

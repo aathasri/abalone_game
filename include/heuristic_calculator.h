@@ -7,6 +7,7 @@
 #include <cmath>
 #include <set>
 #include <chrono>
+#include <unordered_set>
 
 class HeuristicCalculator {
 

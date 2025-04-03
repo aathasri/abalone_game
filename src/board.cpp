@@ -22,6 +22,10 @@ const std::vector<std::vector<bool>> &Board::getAdjacencyMatrix() const
     return adjacencyMatrix;
 }
 
+const std::map<std::pair<int, int>, int>& Board::getCoordToIndex() {
+    return coordToIndex;
+}
+
 const std::vector<std::pair<int, int>>& Board::getIndexToCoord() const {
     return indexToCoord;
 }
@@ -160,14 +164,16 @@ void Board::movePiecesSideStep(const Move& move)
 {
     std::vector<std::pair<int, int>> oldPositions, newPositions;
 
-    for (std::pair<int, int> pair : move.positions) {
-        int oldPosLetIndex = pair.first;
-        int oldPosNumIndex = pair.second;
+    for (int i = 0; i < move.size; ++i) {
+        int oldPosLetIndex = move.positions[i].first;
+        int oldPosNumIndex = move.positions[i].second;
+        
         int newPosLetIndex = oldPosLetIndex + DirectionHelper::getDelta(move.direction).first;
         int newPosNumIndex = oldPosNumIndex + DirectionHelper::getDelta(move.direction).second;
-
-        oldPositions.push_back({oldPosLetIndex, oldPosNumIndex});
-        newPositions.push_back({newPosLetIndex, newPosNumIndex});
+        
+        oldPositions.emplace_back(oldPosLetIndex, oldPosNumIndex);
+        newPositions.emplace_back(newPosLetIndex, newPosNumIndex);
+    
         gameboard[newPosLetIndex][newPosNumIndex] = gameboard[oldPosLetIndex][oldPosNumIndex];
         gameboard[oldPosLetIndex][oldPosNumIndex] = 0;
     }

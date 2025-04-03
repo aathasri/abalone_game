@@ -55,9 +55,11 @@ public:
     // TODO - MAKE GETTERS CONSTANT
     const std::array<std::array<int, COLS>, ROWS>& getBoard() const;
     const std::vector<std::vector<bool>>& getAdjacencyMatrix() const;
+    static const std::map<std::pair<int, int>, int>& getCoordToIndex();
     const std::vector<std::pair<int, int>>& getIndexToCoord() const;
     const int& getNumPlayerOnePieces() const;
     const int& getNumPlayerTwoPieces() const;
+    
 
     // Function to place pieces on the board
     void placePieces(const std::vector<std::string>& pieces);
