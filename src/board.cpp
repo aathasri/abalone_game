@@ -189,6 +189,8 @@ void Board::movePiecesSideStep(const Move& move)
 
 void Board::initializeAdjacencyMatrix()
 {
+    std::cout << "INIT ADJACENCY MATRIX" << std::endl;
+
     coordToIndex.clear();
     indexToCoord.clear();
 
@@ -268,6 +270,8 @@ bool Board::staticMappingInitialized = false;
 
 
 void Board::initializeStaticAdjacencyMapping() {
+
+    std::cout << "INIT ADJACENCY MAP" << std::endl;
     if (staticMappingInitialized) return;
 
     int index = 0;
