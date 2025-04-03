@@ -258,7 +258,12 @@ void Board::updateAdjacencyAt(int idx)
 std::map<std::pair<int, int>, int> Board::coordToIndex;
 std::vector<std::pair<int, int>> Board::indexToCoord;
 
+bool Board::staticMappingInitialized = false;
+
+
 void Board::initializeStaticAdjacencyMapping() {
+    if (staticMappingInitialized) return;
+
     int index = 0;
     for (int i = 0; i < ROWS; ++i) {
         for (int j = 0; j < COLS; ++j) {
@@ -269,8 +274,9 @@ void Board::initializeStaticAdjacencyMapping() {
             }
         }
     }
-}
 
+    staticMappingInitialized = true;
+}
 
 
 

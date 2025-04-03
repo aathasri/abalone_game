@@ -16,7 +16,7 @@ public:
 
     Board selectBoard(std::vector<Board> generatedBoards) const;
 
-    static int calculateHeuristic(Board b);
+    static int calculateHeuristic(const Board& b);
 
 private:
 

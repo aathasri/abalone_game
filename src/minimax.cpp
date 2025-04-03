@@ -10,7 +10,7 @@
 Minimax::Minimax(int maxDepth) : maxDepth(maxDepth) {}
 
 Move Minimax::findBestMove(const Board& board, int currentPlayer) {
-    std::cout << "[Minimax] Starting search for best move (depth " << maxDepth << ") for player " << currentPlayer << std::endl;
+    // std::cout << "[Minimax] Starting search for best move (depth " << maxDepth << ") for player " << currentPlayer << std::endl; // TEST
 
     Move bestMove;
     int bestScore = std::numeric_limits<int>::min();
@@ -18,12 +18,12 @@ Move Minimax::findBestMove(const Board& board, int currentPlayer) {
     MoveGenerator moveGen;
     moveGen.generateMoves(currentPlayer, board);
     std::set<Move> allMoves = moveGen.getGeneratedMoves();
-    std::cout << "[Minimax] Generated " << allMoves.size() << " moves" << std::endl;
+    // std::cout << "[Minimax] Generated " << allMoves.size() << " moves" << std::endl; // TEST
 
     BoardGenerator generator;
     generator.generateBoards(board, allMoves);
     const auto& children = generator.getGeneratedBoards();
-    std::cout << "[Minimax] Generated " << children.size() << " child boards" << std::endl;
+    // std::cout << "[Minimax] Generated " << children.size() << " child boards" << std::endl; // TEST
 
     auto moveIt = allMoves.begin();
     for (size_t i = 0; i < children.size() && moveIt != allMoves.end(); ++i, ++moveIt) {
@@ -40,8 +40,8 @@ Move Minimax::findBestMove(const Board& board, int currentPlayer) {
 
 int Minimax::minimax(const Board& board, int depth, int currentPlayer, bool isMaximizing,
                      int alpha, int beta) {
-    std::cout << "[Minimax] Entering depth " << depth << " | Player: " << currentPlayer
-              << " | Maximizing: " << isMaximizing << std::endl;
+    // std::cout << "[Minimax] Entering depth " << depth << " | Player: " << currentPlayer
+    //           << " | Maximizing: " << isMaximizing << std::endl; // TEST
 
     auto it = transpositionTable.find(board);
     if (it != transpositionTable.end()) {

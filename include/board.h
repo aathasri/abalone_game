@@ -44,6 +44,8 @@ private:
     static std::array<std::array<std::array<uint64_t, 3>, COLS>, ROWS> zobristTable;
     static bool zobristInitialized;
 
+    static bool staticMappingInitialized;
+
 
 public:
     // Constructor
