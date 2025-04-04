@@ -16,21 +16,16 @@ Game::Game(const GameSettings& settings)
     currentPlayer = settings.getPlayerColourMap().at(PlayerColour::BLACK);
 }
 
-std::array<std::array<int, COLS>, ROWS> Game::generateStandardBoard()
+Board Game::generateStandardBoard()
 {
     std::map<PlayerColour, int> colourMap = settings.getPlayerColourMap();
-
-    std::cout << "Map size: " << colourMap.size() << std::endl;
-    for (const auto& [color, num] : colourMap) {
-        std::cout << "Color: " << (color == PlayerColour::BLACK ? "BLACK" : "WHITE") << ", Player: " << num << std::endl;
-    }
 
     int bP = colourMap.at(PlayerColour::BLACK);
     int wP = colourMap.at(PlayerColour::WHITE);
 
     std::cout << wP << " , " << bP << std::endl;
 
-    std::array<std::array<int, COLS>, ROWS> blankBoard = {{
+    std::array<std::array<int, COLS>, ROWS> standardBoard = {{
         {-1, -1, -1, -1, wP, wP, wP, wP, wP},
         {-1, -1, -1, wP, wP, wP, wP, wP, wP},
         {-1, -1,  0,  0, wP, wP, wP,  0,  0},
@@ -41,18 +36,19 @@ std::array<std::array<int, COLS>, ROWS> Game::generateStandardBoard()
         {bP, bP, bP, bP, bP, bP, -1, -1, -1},
         {bP, bP, bP, bP, bP, -1, -1, -1, -1}
     }};
-    
-    return blankBoard;
+
+    auto [adj, c2i, i2c] = Board::createAdjacencyData(standardBoard);
+    return Board(standardBoard, adj, c2i, i2c);
 }
 
-std::array<std::array<int, COLS>, ROWS> Game::generateGermanBoard()
+Board Game::generateGermanBoard()
 {
     std::map<PlayerColour, int> colourMap = settings.getPlayerColourMap();
 
     int bP = colourMap.at(PlayerColour::BLACK);
     int wP = colourMap.at(PlayerColour::WHITE);
 
-    std::array<std::array<int, COLS>, ROWS> blankBoard = {{
+    std::array<std::array<int, COLS>, ROWS> germanBoard = {{
         {-1, -1, -1, -1,  0,  0,  0,  0,  0},
         {-1, -1, -1, wP, wP,  0,  0, bP, bP},
         {-1, -1, wP, wP, wP,  0, bP, bP, bP},
@@ -64,17 +60,18 @@ std::array<std::array<int, COLS>, ROWS> Game::generateGermanBoard()
         { 0,  0,  0,  0,  0, -1, -1, -1, -1}
     }};
 
-    return blankBoard;
+    auto [adj, c2i, i2c] = Board::createAdjacencyData(germanBoard);
+    return Board(germanBoard, adj, c2i, i2c);
 }
 
-std::array<std::array<int, COLS>, ROWS> Game::generateBelgianBoard()
+Board Game::generateBelgianBoard()
 {
     std::map<PlayerColour, int> colourMap = settings.getPlayerColourMap();
 
     int bP = colourMap.at(PlayerColour::BLACK);
     int wP = colourMap.at(PlayerColour::WHITE);
 
-    std::array<std::array<int, COLS>, ROWS> blankBoard = {{
+    std::array<std::array<int, COLS>, ROWS> belgianBoard = {{
         {-1, -1, -1, -1, wP, wP,  0, bP, bP},
         {-1, -1, -1, wP, wP, wP, bP, bP, bP},
         {-1, -1,  0, wP, wP,  0, bP, bP,  0},
@@ -86,17 +83,18 @@ std::array<std::array<int, COLS>, ROWS> Game::generateBelgianBoard()
         {bP, bP,  0, wP, wP, -1, -1, -1, -1}
     }};
 
-    return blankBoard;
+    auto [adj, c2i, i2c] = Board::createAdjacencyData(belgianBoard);
+    return Board(belgianBoard, adj, c2i, i2c);
 }
 
 Board Game::initializeBoard()
 {
     if (settings.getBoardLayout() == BoardLayout::STANDARD) {
-        return Board(generateStandardBoard());
+        return generateStandardBoard();
     } else if (settings.getBoardLayout() == BoardLayout::GERMAN_DAISY) {
-        return Board(generateGermanBoard());
+        return generateGermanBoard();
     } else {
-        return Board(generateBelgianBoard());
+        return generateBelgianBoard();
     }
 }
 

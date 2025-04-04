@@ -1,6 +1,5 @@
 #include "minimax.h"
 
-
 Minimax::Minimax(int maxDepth) : maxDepth(maxDepth) {}
 
 Move Minimax::findBestMove(const Board& board, int currentPlayer) {
@@ -11,27 +10,30 @@ Move Minimax::findBestMove(const Board& board, int currentPlayer) {
     moveGen.generateMoves(currentPlayer, board);
     std::set<Move> allMoves = moveGen.getGeneratedMoves();
 
-    std::vector<std::pair<Move, int>> moveScores;
+    struct MoveNode {
+        Move move;
+        std::unique_ptr<Board> board;
+        int heuristic;
+    };
+
+    std::vector<MoveNode> moveNodes;
     for (const Move& move : allMoves) {
         auto tempBoard = std::make_unique<Board>(board);
         tempBoard->applyMove(move);
         int score = HeuristicCalculator::calculateHeuristic(*tempBoard);
-        moveScores.emplace_back(move, score);
+        moveNodes.push_back({move, std::move(tempBoard), score});
     }
 
-    std::sort(moveScores.begin(), moveScores.end(),
-              [](const auto& a, const auto& b) { return a.second > b.second; });
+    std::sort(moveNodes.begin(), moveNodes.end(),
+              [](const MoveNode& a, const MoveNode& b) { return a.heuristic > b.heuristic; });
 
-    for (const auto& [move, _] : moveScores) {
-        auto child = std::make_unique<Board>(board);
-        child->applyMove(move);
-
-        int score = minimax(*child, maxDepth - 1, 3 - currentPlayer, false,
+    for (auto& node : moveNodes) {
+        int score = minimax(*node.board, maxDepth - 1, 3 - currentPlayer, false,
                             std::numeric_limits<int>::min(), std::numeric_limits<int>::max());
 
         if (score > bestScore) {
             bestScore = score;
-            bestMove = move;
+            bestMove = node.move;
         }
     }
 
@@ -64,24 +66,29 @@ int Minimax::minimax(const Board& board, int depth, int currentPlayer, bool isMa
         return score;
     }
 
-    std::vector<std::pair<std::unique_ptr<Board>, int>> scoredChildren;
+    struct ChildNode {
+        std::unique_ptr<Board> board;
+        int heuristic;
+    };
+
+    std::vector<ChildNode> children;
     for (const auto& move : moves) {
         auto child = std::make_unique<Board>(board);
         child->applyMove(move);
         int h = HeuristicCalculator::calculateHeuristic(*child);
-        scoredChildren.emplace_back(std::move(child), h);
+        children.push_back({std::move(child), h});
     }
 
-    std::sort(scoredChildren.begin(), scoredChildren.end(),
-              [isMaximizing](const auto& a, const auto& b) {
-                  return isMaximizing ? a.second > b.second : a.second < b.second;
+    std::sort(children.begin(), children.end(),
+              [isMaximizing](const ChildNode& a, const ChildNode& b) {
+                  return isMaximizing ? a.heuristic > b.heuristic : a.heuristic < b.heuristic;
               });
 
     int bestScore = isMaximizing ? std::numeric_limits<int>::min()
                                  : std::numeric_limits<int>::max();
 
-    for (const auto& [child, _] : scoredChildren) {
-        int result = minimax(*child, depth - 1, 3 - currentPlayer, !isMaximizing, alpha, beta);
+    for (auto& child : children) {
+        int result = minimax(*child.board, depth - 1, 3 - currentPlayer, !isMaximizing, alpha, beta);
 
         if (isMaximizing) {
             bestScore = std::max(bestScore, result);

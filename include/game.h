@@ -24,9 +24,9 @@ public:
 
 private:
 
-    std::array<std::array<int, COLS>, ROWS> generateStandardBoard();
-    std::array<std::array<int, COLS>, ROWS> generateGermanBoard();
-    std::array<std::array<int, COLS>, ROWS> generateBelgianBoard();
+    Board generateStandardBoard();
+    Board generateGermanBoard();
+    Board generateBelgianBoard();
     Board initializeBoard();
     void switchPlayer();
     bool isGameOver() const;

@@ -32,3 +32,6 @@ cmake-build-debug/
 
 # Ignore pybind11 files
 pybind11/
+
+#Adding Cmake file here because of Unix / Windows differences
+CMakeLists.txt
