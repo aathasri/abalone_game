@@ -1,13 +1,15 @@
 #include "heuristic_calculator.h"
-#include <queue>     // needed for BFS in groupingAdvantage
-#include <iostream>  // for std::cerr
-#include <cmath>     // for std::abs
+#include <cmath>    // std::abs
+#include <iostream> // std::cerr
+#include <set>      // for std::set
+#include <queue>    // for std::queue
 
 Board HeuristicCalculator::selectBoard(std::vector<Board> generatedBoards) const
 {
     Board bestBoard = generatedBoards[0];
     int bestHeuristic = 0;
 
+    // Because 'selectBoard' is const, we must call a const method 'calculateHeuristic'
     for (Board& b : generatedBoards) {
         int currHeuristic = calculateHeuristic(b);
         if (currHeuristic > bestHeuristic) {
@@ -21,54 +23,52 @@ Board HeuristicCalculator::selectBoard(std::vector<Board> generatedBoards) const
     return bestBoard;
 }
 
-int HeuristicCalculator::calculateHeuristic(const Board& b) {
-    // auto start = std::chrono::high_resolution_clock::now();  // (Optional) Start timing
+// IMPORTANT: No trailing semicolon here! 
+// This is the definition of the function, not a declaration.
+int HeuristicCalculator::calculateHeuristic(const Board& b) const
+{
+    // The "full" approach, same as your original or referencing adjacency LIST
+    // We'll do something minimal here:
 
-    // Retrieve board data
-    const auto& board      = b.getBoard();
-    const auto& adjList    = b.getAdjacencyList();  // <-- Use adjacency LIST
-    const auto& coords     = b.getIndexToCoord();
-    const auto& coordToIdx = b.getCoordToIndex();
+    const auto& board   = b.getBoard();
+    const auto& adjList = b.getAdjacencyList();
+    const auto& coords  = b.getIndexToCoord();
 
-    // Sanity check
     if (coords.size() != adjList.size()) {
-        std::cerr << "[ERROR] coords.size() and adjList.size() mismatch in calculateHeuristic\n";
+        std::cerr << "[ERROR] mismatch in calculateHeuristic\n";
         return 0;
     }
 
-    // We'll store various heuristic factors indexed by [player], so [0] is unused
+    // Basic counters
     int cohesion[3]      = {};
     int pushPotential[3] = {};
     int vulnerability[3] = {};
     int isolated[3]      = {};
     int proximity[3]     = {};
 
-    // "Center" of a 9x9 might be row=4, col=4 in zero-based
-    int centerX = ROWS / 2; 
-    int centerY = COLS / 2; 
+    // Board center for a 9x9
+    int centerX = ROWS / 2;
+    int centerY = COLS / 2;
 
-    // Loop over all valid positions
+    // Tally #marbles
+    int p1count = b.getNumPlayerOnePieces();
+    int p2count = b.getNumPlayerTwoPieces();
+
     for (int i = 0; i < static_cast<int>(coords.size()); ++i) {
         auto [x, y] = coords[i];
         int player  = board[x][y];
         if (player != 1 && player != 2) {
-            // Skip empty or invalid
             continue;
         }
 
-        // Proximity to center: simple Manhattan distance
+        // proximity
         int dist = std::abs(x - centerX) + std::abs(y - centerY);
         proximity[player] += (10 - dist);
 
-        // We'll count how many allies & enemies around this marble
-        int allies  = 0;
-        int enemies = 0;
-
-        // Go through each neighbor index in the adjacency list
-        for (int neighborIndex : adjList[i]) {
-            auto [nx, ny] = coords[neighborIndex];
+        int allies = 0, enemies = 0;
+        for (int neighborIdx : adjList[i]) {
+            auto [nx, ny] = coords[neighborIdx];
             int neighbor  = board[nx][ny];
-
             if (neighbor == player) {
                 cohesion[player]++;
                 allies++;
@@ -78,146 +78,237 @@ int HeuristicCalculator::calculateHeuristic(const Board& b) {
             }
         }
 
-        // If no allies around, it's isolated
         if (allies == 0) {
             isolated[player]++;
         }
-        // If 2 or more enemies around, it might be vulnerable
         if (enemies >= 2) {
             vulnerability[player]++;
         }
     }
 
-    // Compose final score from your weighting
+    // Weighted sum
     int p1 = 1, p2 = 2;
     int score = 0;
-    score += 10 * (cohesion[p1]       - cohesion[p2]);
+    score += 10 * (cohesion[p1] - cohesion[p2]);
     score += 15 * (pushPotential[p1] - pushPotential[p2]);
     score += 12 * (vulnerability[p2] - vulnerability[p1]);
     score += 10 * (isolated[p2]      - isolated[p1]);
     score +=  8 * (proximity[p1]     - proximity[p2]);
-    // Additional heuristics
-    score += 20 * (groupingAdvantage(p1, b) - groupingAdvantage(p2, b));
-    score += 15 * (lineAlignment(p1, b)     - lineAlignment(p2, b));
-    score += 25 *  marbleDifference(p1, b);
-
-    // auto end = std::chrono::high_resolution_clock::now();   // (Optional) End timing
-    // auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-    // std::cout << "Heuristic took " << duration.count() << " microseconds\n";
+    // For brevity, let's just add marbleDifference:
+    score += 25 * marbleDifference(p1, b);
 
     return score;
 }
 
-int HeuristicCalculator::marbleDifference(int player, const Board& b) {
+int HeuristicCalculator::marbleDifference(int player, const Board& b) const
+{
     int p1Count = b.getNumPlayerOnePieces();
     int p2Count = b.getNumPlayerTwoPieces();
     return (player == 1) ? (p1Count - p2Count) : (p2Count - p1Count);
 }
 
-int HeuristicCalculator::groupingAdvantage(int player, const Board& b) {
-    // We'll do BFS for connected components using adjacency list
-    const auto& adjList = b.getAdjacencyList();
-    const auto& board   = b.getBoard();
-    const auto& coords  = b.getIndexToCoord();
+/**
+ * -------------------------------------------------------
+ *   INCREMENTAL METHODS
+ * -------------------------------------------------------
+ */
+
+HeuristicCache HeuristicCalculator::initHeuristicCache(const Board& b) const
+{
+    HeuristicCache cache;
+    const auto& coords     = b.getIndexToCoord();
+    const auto& adjList    = b.getAdjacencyList();
+    const auto& boardArr   = b.getBoard();
 
     if (coords.size() != adjList.size()) {
-        std::cerr << "[ERROR] coords and adjList size mismatch in groupingAdvantage\n";
-        return 0;
+        std::cerr << "[ERROR] mismatch in initHeuristicCache\n";
+        return cache; // empty
     }
 
-    std::vector<bool> visited(coords.size(), false);
-    int groupsWithMajority = 0;
+    cache.occupant.resize(coords.size(), 0);
+    cache.allyCount.resize(coords.size(), 0);
+    cache.enemyCount.resize(coords.size(), 0);
+    cache.proximity.resize(coords.size(), 0);
+
+    cache.marbleCountP1 = b.getNumPlayerOnePieces();
+    cache.marbleCountP2 = b.getNumPlayerTwoPieces();
+
+    int centerX = ROWS / 2;
+    int centerY = COLS / 2;
+
+    // Fill occupant info
+    for (int i = 0; i < static_cast<int>(coords.size()); ++i) {
+        auto [x, y]   = coords[i];
+        cache.occupant[i] = boardArr[x][y];  // 0,1,2, or -1
+    }
+
+    // Now compute local adjacency-based data & partial heuristic
+    int p1 = 1, p2 = 2;
+    int cohesion[3]      = {};
+    int pushPotential[3] = {};
+    int vulnerability[3] = {};
+    int isolated[3]      = {};
+    int proximityArr[3]  = {};
 
     for (int i = 0; i < static_cast<int>(coords.size()); ++i) {
-        if (visited[i]) {
-            continue;
-        }
-        auto [x, y] = coords[i];
-        int color   = board[x][y];
-        if (color <= 0) {
-            // Empty or invalid cell
+        recalcCellMetrics(i, b, cache, centerX, centerY);
+
+        int player = cache.occupant[i];
+        if (player != 1 && player != 2) {
             continue;
         }
 
-        // We'll BFS from i to find all connected cells
-        std::queue<int> q;
-        q.push(i);
-        visited[i] = true;
+        // We'll accumulate partial results for final scoring
+        proximityArr[player] += cache.proximity[i];
 
-        int playerCount = 0;
-        int oppCount    = 0;
-
-        while (!q.empty()) {
-            int curr = q.front();
-            q.pop();
-
-            auto [cx, cy] = coords[curr];
-            int currColor = board[cx][cy];
-            // Tally marbles
-            if (currColor == player) {
-                playerCount++;
-            } else if (currColor == 3 - player) {
-                oppCount++;
-            }
-
-            // Explore neighbors
-            for (int neighborIndex : adjList[curr]) {
-                if (!visited[neighborIndex]) {
-                    visited[neighborIndex] = true;
-                    q.push(neighborIndex);
-                }
-            }
+        int allies  = cache.allyCount[i];
+        int enemies = cache.enemyCount[i];
+        if (allies == 0) {
+            isolated[player]++;
         }
-
-        // If this connected component has majority of 'player' marbles:
-        if (playerCount > oppCount) {
-            groupsWithMajority++;
+        if (enemies >= 2) {
+            vulnerability[player]++;
         }
+        cohesion[player]      += allies;
+        pushPotential[player] += enemies;
     }
 
-    return groupsWithMajority;
+    // Combine them in a "totalHeuristic"
+    int score = 0;
+    score += 10 * (cohesion[p1]      - cohesion[p2]);
+    score += 15 * (pushPotential[p1] - pushPotential[p2]);
+    score += 12 * (vulnerability[p2] - vulnerability[p1]);
+    score += 10 * (isolated[p2]      - isolated[p1]);
+    score +=  8 * (proximityArr[p1]  - proximityArr[p2]);
+    // For demonstration, add marbleDifference:
+    score += 25 * (static_cast<int>(cache.marbleCountP1)
+                 - static_cast<int>(cache.marbleCountP2));
+
+    cache.totalHeuristic = score;
+    return cache;
 }
 
-int HeuristicCalculator::lineAlignment(int player, const Board& b) {
-    // This function doesn't use adjacency at all; it checks 3 in a row 
-    // directly via offsets.
-    const auto& board       = b.getBoard();
-    const auto& coords      = b.getIndexToCoord();
-    const auto& coordToIdx  = b.getCoordToIndex();
+HeuristicCache HeuristicCalculator::updateHeuristicCache(
+    const Board& parentBoard,
+    const HeuristicCache& parentCache,
+    Board& childBoard,
+    const Move& m
+) const
+{
+    HeuristicCache newCache = parentCache;
 
-    std::set<std::string> countedGroups;
-    int aligned = 0;
+    const auto& coords  = childBoard.getIndexToCoord();
+    const auto& adjList = childBoard.getAdjacencyList();
+    const auto& boardArr= childBoard.getBoard();
+    if (coords.size() != adjList.size()) {
+        std::cerr << "[ERROR] mismatch in updateHeuristicCache\n";
+        return newCache; // partial
+    }
 
-    // For each cell in coords, if it's the player's marble, 
-    // check 6 directions for a 3-in-a-line.
-    for (int i = 0; i < static_cast<int>(coords.size()); ++i) {
-        auto [x1, y1] = coords[i];
-        if (board[x1][y1] != player) {
-            continue;
+    // Re-check marble counts after the move
+    newCache.marbleCountP1 = childBoard.getNumPlayerOnePieces();
+    newCache.marbleCountP2 = childBoard.getNumPlayerTwoPieces();
+
+    // Figure out which cells to re-check
+    std::set<int> cellsToUpdate;
+
+    // The Move class presumably has getSize() and getDirection(),
+    // plus 'positions' vector. 
+    for (int i = 0; i < m.getSize(); ++i) {
+        auto [oldX, oldY] = m.getPosition(i);
+        auto oldIt = childBoard.getCoordToIndex().find({oldX, oldY});
+        if (oldIt != childBoard.getCoordToIndex().end()) {
+            cellsToUpdate.insert(oldIt->second);
         }
-
-        for (auto [dx, dy] : std::vector<std::pair<int,int>>{
-             {-1, 0}, {-1, 1}, {0, 1}, {1, 0}, {1, -1}, {0, -1}}) 
-        {
-            int x2 = x1 + dx, y2 = y1 + dy;
-            int x3 = x2 + dx, y3 = y2 + dy;
-
-            // If both next spots exist and hold the player's marble...
-            if (coordToIdx.count({x2, y2}) && coordToIdx.count({x3, y3}) &&
-                board[x2][y2] == player && board[x3][y3] == player) 
-            {
-                // Build a string key to ensure we don't double-count
-                std::ostringstream oss;
-                oss << x1 << "," << y1 << "-" 
-                    << x2 << "," << y2 << "-" 
-                    << x3 << "," << y3;
-
-                if (countedGroups.insert(oss.str()).second) {
-                    aligned++;
-                }
-            }
+        auto [dx, dy] = DirectionHelper::getDelta(m.getDirection());
+        int newX = oldX + dx;
+        int newY = oldY + dy;
+        auto newIt = childBoard.getCoordToIndex().find({newX, newY});
+        if (newIt != childBoard.getCoordToIndex().end()) {
+            cellsToUpdate.insert(newIt->second);
         }
     }
 
-    return aligned;
+    // Also check neighbors
+    std::set<int> extended;
+    for (int cIdx : cellsToUpdate) {
+        extended.insert(cIdx);
+        for (int nIdx : adjList[cIdx]) {
+            extended.insert(nIdx);
+        }
+    }
+
+    // occupant might have changed from parent
+    for (int i : extended) {
+        auto [x, y] = coords[i];
+        newCache.occupant[i] = boardArr[x][y];
+    }
+
+    // Reset adjacency tallies for changed cells
+    for (int i : extended) {
+        newCache.allyCount[i]  = 0;
+        newCache.enemyCount[i] = 0;
+        newCache.proximity[i]  = 0;
+    }
+
+    // Recalc each changed cell
+    int centerX = ROWS / 2;
+    int centerY = COLS / 2;
+    for (int i : extended) {
+        recalcCellMetrics(i, childBoard, newCache, centerX, centerY);
+    }
+
+    // For now, do a simpler approach: recalc the entire heuristic from scratch 
+    // to set newCache.totalHeuristic
+    newCache.totalHeuristic = calculateHeuristic(childBoard);
+
+    return newCache;
+}
+
+int HeuristicCalculator::getCachedHeuristic(const HeuristicCache& cache) const
+{
+    return cache.totalHeuristic;
+}
+
+void HeuristicCalculator::recalcCellMetrics(
+    int i, 
+    const Board& b,
+    HeuristicCache& cache,
+    int centerX, 
+    int centerY
+) const
+{
+    const auto& coords  = b.getIndexToCoord();
+    const auto& adjList = b.getAdjacencyList();
+    const auto& boardArr= b.getBoard();
+
+    auto [x, y] = coords[i];
+    int player  = boardArr[x][y];
+
+    cache.allyCount[i]  = 0;
+    cache.enemyCount[i] = 0;
+    cache.proximity[i]  = 0;
+
+    if (player != 1 && player != 2) {
+        cache.occupant[i] = player; // 0 or -1
+        return; // empty or invalid
+    }
+
+    // occupant
+    cache.occupant[i] = player;
+
+    // proximity
+    int dist = std::abs(x - centerX) + std::abs(y - centerY);
+    cache.proximity[i] = (10 - dist);
+
+    // adjacency
+    for (int neighborIdx : adjList[i]) {
+        auto [nx, ny] = coords[neighborIdx];
+        int neighbor  = boardArr[nx][ny];
+        if (neighbor == player) {
+            cache.allyCount[i]++;
+        } else if (neighbor == 3 - player) {
+            cache.enemyCount[i]++;
+        }
+    }
 }
