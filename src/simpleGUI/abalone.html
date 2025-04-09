@@ -23,15 +23,16 @@
     .black-indicator { background: black; }
     .white-indicator { background: white; border: 1px solid #ccc; }
     #move-input { margin: 20px 0; }
-    button { padding: 10px 20px; background: #007BFF; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    button { padding: 10px 20px; background: #007BFF; color: white; border: none; border-radius: 5px; cursor: pointer; margin: 5px; }
     button:hover { background: #0056b3; }
+    #pause-button.paused { background: #FF5733; }
+    #move-log { max-height: 150px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; margin: 10px 0; text-align: left; font-size: 14px; }
   </style>
 </head>
 <body>
 <div id="game-container">
   <!-- Start Menu -->
   <div id="start-menu">
-<!--    <h1>Abalone</h1>-->
     <div class="option-group">
       <h2>Choose AI color</h2>
       <label><input type="radio" name="color" value="b" checked> Black</label>
@@ -43,18 +44,30 @@
       <label><input type="radio" name="layout" value="2"> German</label>
       <label><input type="radio" name="layout" value="3"> Belgian</label>
     </div>
+    <div class="option-group">
+      <h2>Set Time Limits (seconds)</h2>
+      <label>AI Move Time Limit: <input type="number" id="ai-time-limit" value="5" min="1" step="0.1"></label><br>
+      <label>Human Move Time Limit: <input type="number" id="human-time-limit" value="10" min="1" step="0.1"></label>
+    </div>
+    <div class="option-group">
+      <h2>Set Move Limit (per player)</h2>
+      <label><input type="number" id="move-limit" value="50" min="1"></label>
+    </div>
     <button id="start-button">Start Game</button>
   </div>
 
   <!-- Game Board -->
   <div id="game-board">
-    <h1>Abalone Game</h1>
+    <h1>Abalone</h1>
     <div id="game-info">
       <div class="player-status">
         <div><span class="status-indicator black-indicator"></span> Black: <span id="black-count">14</span> marbles</div>
         <div><span class="status-indicator white-indicator"></span> White: <span id="white-count">14</span> marbles</div>
       </div>
       <div id="current-turn">Current turn: <span id="current-player">Black</span></div>
+      <div id="ai-timer-info">
+        <div>Total AI Time: <span id="total-ai-time">0s</span></div>
+      </div>
       <div id="status-message"></div>
     </div>
     <div id="board">
@@ -64,7 +77,10 @@
       <input type="text" id="move-text" placeholder="Enter move (e.g., iA1NE)">
       <button id="submit-move">Submit Move</button>
     </div>
-    <button id="new-game" style="margin-top: 20px;">New Game</button>
+    <div id="move-log"></div>
+    <button id="new-game">New Game</button>
+    <button id="pause-button">Pause AI Timer</button>
+    <button id="undo-move">Undo Move</button>
   </div>
 </div>
 
@@ -72,14 +88,15 @@
 <script src="trialgui.js"></script>
 <script>
   // WebAssembly function wrappers
-  let startGameFunc, getBoardStateFunc, makeAIMoveFunc, applyManualMoveFunc;
+  let startGameFunc, getBoardStateFunc, makeAIMoveFunc, applyManualMoveFunc, undoLastMoveFunc;
 
   // Initialize WebAssembly module
   AbaloneModule().then(Module => {
     startGameFunc = Module.cwrap('startGame', null, ['number', 'number']);
     getBoardStateFunc = Module.cwrap('getBoardState', 'string', []);
-    makeAIMoveFunc = Module.cwrap('makeAIMove', 'number', []);
+    makeAIMoveFunc = Module.cwrap('makeAIMove', 'string', []); // Returns "move:result"
     applyManualMoveFunc = Module.cwrap('applyManualMove', 'number', ['string']);
+    undoLastMoveFunc = Module.cwrap('undoLastMove', 'number', []);
     console.log("WebAssembly module loaded");
   }).catch(err => console.error("Failed to load WebAssembly module:", err));
 
@@ -99,48 +116,91 @@
   // Game state
   let gameState = {
     board: {},
-    currentPlayer: 'b', // 'b' for black, 'w' for white
-    aiColor: 'b',       // AI's color (chosen by user)
-    playerColor: 'w',   // Human's color (opposite of AI)
+    currentPlayer: 'b',
+    aiColor: 'b',
+    playerColor: 'w',
     blackCount: 14,
-    whiteCount: 14
+    whiteCount: 14,
+    totalAITime: 0,
+    aiMoveCount: 0,
+    aiMoveStartTime: null,
+    timerInterval: null,
+    isPaused: false,
+    moveNumber: 0,
+    moveLog: [],
+    aiTimeLimit: 5,
+    humanTimeLimit: 10,
+    moveLimit: 50
   };
 
   // Start button event
   document.getElementById('start-button').addEventListener('click', function () {
     const aiColorChoice = document.querySelector('input[name="color"]:checked').value;
     const layoutChoice = document.querySelector('input[name="layout"]:checked').value;
+    gameState.aiTimeLimit = parseFloat(document.getElementById('ai-time-limit').value);
+    gameState.humanTimeLimit = parseFloat(document.getElementById('human-time-limit').value);
+    gameState.moveLimit = parseInt(document.getElementById('move-limit').value);
 
     gameState.aiColor = aiColorChoice;
     gameState.playerColor = aiColorChoice === 'b' ? 'w' : 'b';
-    gameState.currentPlayer = 'b'; // Black always starts
+    gameState.currentPlayer = 'b';
+    gameState.totalAITime = 0;
+    gameState.aiMoveCount = 0;
+    gameState.aiMoveStartTime = null;
+    gameState.isPaused = false;
+    gameState.moveNumber = 0;
+    gameState.moveLog = [];
 
-    // Call C++ startGame (0 = Black, 1 = White for AI color)
     const aiColorNum = gameState.aiColor === 'b' ? 0 : 1;
     startGameFunc(aiColorNum, Number(layoutChoice));
 
-    // Get initial board state from C++
     updateBoardFromWasm();
-
-    // Hide start menu and show game board
     document.getElementById('start-menu').style.display = 'none';
     document.getElementById('game-board').style.display = 'block';
-
-    // Generate and update UI
     generateBoardHTML();
     updateBoardDisplay();
     updateGameInfo();
+    updateTimerDisplay();
+    updateMoveLog();
 
-    // If AI is Black, it starts with a random move
     if (gameState.currentPlayer === gameState.aiColor) {
+      startAITimer();
       setTimeout(makeAIMove, 500);
     }
   });
 
   // New game button event
   document.getElementById('new-game').addEventListener('click', function () {
+    clearInterval(gameState.timerInterval);
+    gameState.totalAITime = 0;
+    gameState.aiMoveCount = 0;
+    gameState.aiMoveStartTime = null;
+    gameState.isPaused = false;
+    gameState.moveNumber = 0;
+    gameState.moveLog = [];
+    document.getElementById('pause-button').textContent = 'Pause AI Timer';
+    document.getElementById('pause-button').classList.remove('paused');
     document.getElementById('game-board').style.display = 'none';
     document.getElementById('start-menu').style.display = 'block';
+    updateTimerDisplay();
+    updateMoveLog();
+  });
+
+  // Pause button event
+  document.getElementById('pause-button').addEventListener('click', function () {
+    gameState.isPaused = !gameState.isPaused;
+    const pauseButton = document.getElementById('pause-button');
+    if (gameState.isPaused) {
+      pauseButton.textContent = 'Resume AI Timer';
+      pauseButton.classList.add('paused');
+      clearInterval(gameState.timerInterval);
+    } else {
+      pauseButton.textContent = 'Pause AI Timer';
+      pauseButton.classList.remove('paused');
+      if (gameState.currentPlayer === gameState.aiColor && gameState.aiMoveStartTime !== null) {
+        startAITimer();
+      }
+    }
   });
 
   // Submit move button event (human player's turn)
@@ -158,30 +218,61 @@
         return;
       }
 
+      gameState.moveNumber++;
+      gameState.moveLog.push(`${gameState.moveNumber}: ${gameState.playerColor === 'b' ? 'Black' : 'White'}:${moveText}`);
       document.getElementById('status-message').textContent = 'Move applied: ' + moveText;
       document.getElementById('move-text').value = '';
-
-      // Update board state from WASM
       updateBoardFromWasm();
       updateBoardDisplay();
       updateGameInfo();
+      updateMoveLog();
 
-      // Check win condition from C++
       if (result === 1) {
         document.getElementById('status-message').textContent = 'White wins!';
+        clearInterval(gameState.timerInterval);
         return;
       } else if (result === 2) {
         document.getElementById('status-message').textContent = 'Black wins!';
+        clearInterval(gameState.timerInterval);
         return;
       }
 
-      // Switch to AI's turn and update UI immediately
       gameState.currentPlayer = gameState.aiColor;
-      updateGameInfo(); // Refresh UI to show AI's turn
+      updateGameInfo();
+      startAITimer();
       setTimeout(makeAIMove, 1000);
     } else {
       document.getElementById('status-message').textContent = 'Invalid move format!';
     }
+  });
+
+  // Undo move button event
+  document.getElementById('undo-move').addEventListener('click', function () {
+    if (gameState.moveNumber === 0) {
+      document.getElementById('status-message').textContent = 'Nothing to undo!';
+      return;
+    }
+
+    const result = undoLastMoveFunc();
+    if (result === -1) {
+      document.getElementById('status-message').textContent = 'Cannot undo initial state!';
+      return;
+    }
+
+    gameState.moveNumber--;
+    const lastMove = gameState.moveLog.pop();
+    if (lastMove.includes('s)')) { // Rough check for AI move (includes time)
+      gameState.aiMoveCount--;
+      const moveTime = parseFloat(lastMove.split(':').pop().replace('s)', '')) * 1000;
+      gameState.totalAITime -= moveTime;
+    }
+    gameState.currentPlayer = gameState.currentPlayer === 'b' ? 'w' : 'b';
+    updateBoardFromWasm();
+    updateBoardDisplay();
+    updateGameInfo();
+    updateTimerDisplay();
+    updateMoveLog();
+    document.getElementById('status-message').textContent = 'Move undone';
   });
 
   // Update board state from WebAssembly
@@ -260,22 +351,73 @@
   function makeAIMove() {
     document.getElementById('status-message').textContent = 'AI is thinking...';
     setTimeout(() => {
-      const result = makeAIMoveFunc();
+      const moveStartTime = gameState.aiMoveStartTime;
+      const aiMoveResult = makeAIMoveFunc(); // Returns "move:result"
+      const moveEndTime = performance.now();
+      const moveTime = (moveEndTime - moveStartTime) / 1000; // In seconds
+      gameState.totalAITime += moveTime * 1000; // In milliseconds
+      gameState.aiMoveCount++;
+      gameState.moveNumber++;
+
+      const [aiMove, result] = aiMoveResult.split(':');
+      if (moveTime > gameState.aiTimeLimit) {
+        document.getElementById('status-message').textContent = `AI move took ${moveTime.toFixed(2)}s, exceeding ${gameState.aiTimeLimit}s limit!`;
+      } else if (aiMove === "none") {
+        document.getElementById('status-message').textContent = 'AI has no valid moves!';
+      } else {
+        document.getElementById('status-message').textContent = 'AI made a move: ' + aiMove;
+      }
+
+      if (aiMove !== "none") {
+        gameState.moveLog.push(`${gameState.moveNumber}: ${gameState.aiColor === 'b' ? 'Black' : 'White'}:${aiMove}:${moveTime.toFixed(2)}s)`);
+      }
+      clearInterval(gameState.timerInterval);
+      gameState.aiMoveStartTime = null;
+
       updateBoardFromWasm();
-      document.getElementById('status-message').textContent = 'AI made a move';
       updateBoardDisplay();
       updateGameInfo();
+      updateTimerDisplay();
+      updateMoveLog();
 
-      if (result === 1) {
+      const resultNum = parseInt(result);
+      if (resultNum === 1) {
         document.getElementById('status-message').textContent = 'White wins!';
-      } else if (result === 2) {
+      } else if (resultNum === 2) {
         document.getElementById('status-message').textContent = 'Black wins!';
-      } else {
-        // Switch to human's turn and update UI immediately
+      } else if (resultNum === 0 && aiMove !== "none") {
         gameState.currentPlayer = gameState.playerColor;
-        updateGameInfo(); // Refresh UI to show human's turn
+        updateGameInfo();
       }
-    }, 1000);
+    }, 1000); // Simulated delay for visibility
+  }
+
+  // Start AI timer
+  function startAITimer() {
+    gameState.aiMoveStartTime = performance.now();
+    if (!gameState.isPaused) {
+      clearInterval(gameState.timerInterval);
+      gameState.timerInterval = setInterval(updateTimerDisplay, 100);
+    }
+  }
+
+  // Update timer display
+  function updateTimerDisplay() {
+    if (gameState.aiMoveStartTime !== null && !gameState.isPaused) {
+      const currentTime = performance.now();
+      const elapsed = currentTime - gameState.aiMoveStartTime;
+      gameState.totalAITime = gameState.totalAITime + elapsed - (gameState.totalAITime % 1000);
+      gameState.aiMoveStartTime = currentTime;
+    }
+    const totalSeconds = (gameState.totalAITime / 1000).toFixed(2);
+    document.getElementById('total-ai-time').textContent = `${totalSeconds}s`;
+  }
+
+  // Update move log
+  function updateMoveLog() {
+    const moveLogElement = document.getElementById('move-log');
+    moveLogElement.innerHTML = gameState.moveLog.join('<br>');
+    moveLogElement.scrollTop = moveLogElement.scrollHeight;
   }
 
   // Move validation
