@@ -9,6 +9,7 @@
 // --------------------------------------------------------------------------
 // STATIC WEIGHTS - Already updated as per suggestion 1
 // --------------------------------------------------------------------------
+
 int HeuristicCalculator::W_COHESION_AI     = 0;
 int HeuristicCalculator::W_COHESION_OPP    = 0;
 int HeuristicCalculator::W_PUSH_AI         = 40; 
