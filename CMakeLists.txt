@@ -7,13 +7,16 @@ project(Abalone VERSION 1.0)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-# Enable AddressSanitizer
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -g -O1")
-set(CMAKE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS} -fsanitize=address")
+## Enable AddressSanitizer
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -g -O1")
+#set(CMAKE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS} -fsanitize=address")
 
-# # Add static linking flags
-# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static -static-libgcc -static-libstdc++")
-# set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static -static-libgcc -static-libstdc++")
+# Add static linking flags
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static -static-libgcc -static-libstdc++")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static -static-libgcc -static-libstdc++")
+
+# Add pybind11
+add_subdirectory(pybind11)
 
 # Add the source files
 set(SOURCES
@@ -27,6 +30,7 @@ set(SOURCES
         src/settings.cpp
         src/game.cpp
         src/threadpool.cpp
+        src/abalone_wrapper.cpp
 )
 
 # Add the header files (optional, for IDEs)
@@ -47,6 +51,12 @@ add_executable(abalone ${SOURCES} ${HEADERS})
 
 # Include directories
 target_include_directories(abalone PRIVATE ${CMAKE_SOURCE_DIR}/include)
+
+# Create the Python module
+pybind11_add_module(abalone_cpp ${SOURCES} ${HEADERS})
+
+# Include directories - pybind11
+target_include_directories(abalone_cpp PRIVATE ${CMAKE_SOURCE_DIR}/include)
 
 # Link libraries (if needed)
 # target_link_libraries(abalone <library_name>)
