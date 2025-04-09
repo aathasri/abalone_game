@@ -11,7 +11,7 @@ Game::Game(const GameSettings& settings)
       turnCount(0),
       moveCountP1(0),
       moveCountP2(0),
-      ai(5)  // maxDepth=5, for example
+      ai(5, settings.getMoveTimeLimit(2), 1)  // maxDepth=5, for example
 {
     currentPlayer = settings.getPlayerColourMap().at(PlayerColour::BLACK);
 }

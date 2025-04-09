@@ -3,13 +3,14 @@
 
 #include "board.h"
 #include "threadpool.h"
+#include "move.h"  // Assumed header for Move and MoveUndo types.
 #include <unordered_map>
 #include <vector>
 #include <mutex>
 #include <cstdint>
 #include <atomic>
 
-// Used to mark whether a TT entry is exact or a bound
+// Used to mark whether a transposition table entry is exact or a bound.
 enum class BoundType { EXACT, LOWER, UPPER };
 
 struct TTEntry {
@@ -17,12 +18,6 @@ struct TTEntry {
     int depth;
     bool isMaxNode;
     BoundType flag;
-};
-
-// New struct for move ordering
-struct MoveOrder {
-    Move move;
-    int heuristic;
 };
 
 class ShardedTranspositionTable {
@@ -81,15 +76,28 @@ private:
 
 class Minimax {
 public:
-    Minimax(int maxDepth);
+    // New constructor: besides maxDepth, now specify the move time limit (in seconds)
+    // for player 2 and a buffer time (in seconds).
+    Minimax(int maxDepth, int timeLimitSeconds, int bufferTimeSeconds);
+
     Move findBestMove(Board& board, int currentPlayer);
     int minimax(Board& board, int depth, int currentPlayer,
                 bool isMaximizing, int alpha, int beta);
 
+    // Optional: accessor for the node count.
+    size_t getNodeCount() const { return nodeCount.load(); }
+
 private:
     int maxDepth;
     ShardedTranspositionTable transpositionTable;
-    std::atomic<size_t> nodeCount = 0;
+    std::atomic<size_t> nodeCount { 0 };
+
+    // New member variables for time management.
+    int timeLimitSeconds;    // Overall time limit for player 2’s move.
+    int bufferTimeSeconds;   // Buffer time to leave before the time limit.
+
+    // New member for cancellation: set to true once the time expires.
+    std::atomic<bool> stopSearch { false };
 };
 
 #endif // MINIMAX_H
