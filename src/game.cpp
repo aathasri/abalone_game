@@ -169,10 +169,6 @@ void Game::play() {
     announceWinner();
 }
 
-void Game::switchPlayer() {
-    currentPlayer = (currentPlayer == 1) ? 2 : 1;
-}
-
 bool Game::isGameOver() const {
     const int WIN_THRESHOLD = 8; // Game over condition (8 pieces remaining)
     return board.getNumPlayerOnePieces() <= WIN_THRESHOLD

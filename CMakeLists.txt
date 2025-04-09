@@ -29,8 +29,8 @@ set(SOURCES
         src/minimax.cpp
         src/settings.cpp
         src/game.cpp
-        src/threadpool.cpp
         src/abalone_wrapper.cpp
+        src/threadpool.cpp
 )
 
 # Add the header files (optional, for IDEs)
@@ -44,9 +44,10 @@ set(HEADERS
         include/settings.h
         include/game.h
         include/threadpool.h
+#        include/abalone_wrapper.h
 )
-
-# Create the executable
+#
+## Create the executable
 add_executable(abalone ${SOURCES} ${HEADERS})
 
 # Include directories

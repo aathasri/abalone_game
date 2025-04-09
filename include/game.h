@@ -6,6 +6,7 @@
 #include "minimax.h"
 #include "move.h"
 #include <set>
+#include <memory>
 
 class Game {
 public:
@@ -13,13 +14,25 @@ public:
 
     void play();
 
+    // Public methods for wrapper access
+    int getCurrentPlayer() const { return currentPlayer; }
+    Board& getBoard() { return board; } // Non-const for modification
+    const Board& getBoard() const { return board; } // Const version for safety
+    Minimax& getAI() { return ai; }
+    void applyMove(const Move& move) { board.applyMove(move); }
+    void switchPlayer() { currentPlayer = (currentPlayer == 1) ? 2 : 1; } // Make public
+    void incrementMoveCountP1() { moveCountP1++; }
+    void incrementMoveCountP2() { moveCountP2++; }
+    const GameSettings& getSettings() const { return settings; }
+    int getMoveCountP1() const { return moveCountP1; }
+    int getMoveCountP2() const { return moveCountP2; }
+
 private:
     Board generateStandardBoard();
     Board generateGermanBoard();
     Board generateBelgianBoard();
     Board initializeBoard();
 
-    void switchPlayer();
     bool isGameOver() const;
     void announceWinner() const;
 
@@ -30,7 +43,6 @@ private:
     int moveCountP2;
     int currentPlayer;
     Minimax ai;  // your minimax AI
-
 };
 
 #endif
