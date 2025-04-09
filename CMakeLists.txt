@@ -26,6 +26,7 @@ set(SOURCES
         src/minimax.cpp
         src/settings.cpp
         src/game.cpp
+        src/threadpool.cpp
 )
 
 # Add the header files (optional, for IDEs)
@@ -38,6 +39,7 @@ set(HEADERS
         include/minimax.h
         include/settings.h
         include/game.h
+        include/threadpool.h
 )
 
 # Create the executable

@@ -4,42 +4,78 @@
 #include "board.h"
 #include "move.h"
 #include <vector>
-#include <queue>
 #include <set>
 
-struct HeuristicCache {
-    // For each valid cell 'i', we store:
-    std::vector<int> occupant;     // occupant[i]: 0 or 1 or 2 (or -1) for the cell i
-    std::vector<int> allyCount;    // how many allies are adjacent
-    std::vector<int> enemyCount;   // how many enemies are adjacent
-    std::vector<int> proximity;    // proximity points for occupant
+// Optional: a structure for storing partial heuristic data
+struct HeuristicCache
+{
+    // occupant[i] for each cell (0.. coords.size()-1)
+    std::vector<int> occupant;
 
-    int marbleCountP1 = 0;  // store #marbles for player1
-    int marbleCountP2 = 0;  // store #marbles for player2
+    // adjacency-based tallies
+    std::vector<int> allyCount;
+    std::vector<int> enemyCount;
+    std::vector<int> proximity;
 
-    // The final heuristic after weighting everything
+    // total marbles for occupant 1 and 2
+    int marbleCountP1;
+    int marbleCountP2;
+
+    // final heuristic after partial or full calculation
     int totalHeuristic = 0;
 };
 
-// Example heuristic calculator
 class HeuristicCalculator {
-    public:
-        Board selectBoard(std::vector<Board> generatedBoards) const;
-        int calculateHeuristic(const Board& b) const;
-    
-        HeuristicCache initHeuristicCache(const Board& b) const;
-        HeuristicCache updateHeuristicCache(const Board& parentBoard,
-                                            const HeuristicCache& parentCache,
-                                            Board& childBoard,
-                                            const Move& m) const;
-        int getCachedHeuristic(const HeuristicCache& cache) const;
-    
-        int marbleDifference(int player, const Board& b) const;
-    
-    private:
-        void recalcCellMetrics(int i, const Board& b,
-                               HeuristicCache& cache,
-                               int centerX, int centerY) const;
-    };
+public:
+    // --------------------------------------------------------------------------
+    // Selects the board with the best heuristic from a list
+    // --------------------------------------------------------------------------
+    Board selectBoard(std::vector<Board> generatedBoards) const;
 
-#endif
+    // --------------------------------------------------------------------------
+    // Main heuristic that returns a score from the AI user's perspective
+    // --------------------------------------------------------------------------
+    int calculateHeuristic(const Board& b) const;
+
+    // --------------------------------------------------------------------------
+    // Incremental methods (only if you still need them)
+    // --------------------------------------------------------------------------
+    HeuristicCache initHeuristicCache(const Board& b) const;
+    HeuristicCache updateHeuristicCache(const Board& parentBoard,
+                                        const HeuristicCache& parentCache,
+                                        Board& childBoard,
+                                        const Move& m) const;
+    int getCachedHeuristic(const HeuristicCache& cache) const;
+
+    // --------------------------------------------------------------------------
+    // Static Weights for each sub-heuristic
+    // We separate AI user vs. Opponent for each factor:
+    // --------------------------------------------------------------------------
+    static int W_COHESION_AI;     // AI user's cohesion
+    static int W_COHESION_OPP;    // Opponent's cohesion
+
+    static int W_PUSH_AI;         // AI user's pushPotential
+    static int W_PUSH_OPP;        // Opponent's pushPotential
+
+    static int W_VULN_AI;         // AI user's vulnerability
+    static int W_VULN_OPP;        // Opponent's vulnerability
+
+    static int W_ISOLATED_AI;     // AI user's isolation
+    static int W_ISOLATED_OPP;    // Opponent's isolation
+
+    static int W_PROX_AI;         // AI user's proximity to center
+    static int W_PROX_OPP;        // Opponent's proximity to center
+
+    static int W_MDIFF;           // Marble difference (AI's marbles vs. Opp's)
+
+private:
+    // Helper for partial BFS or difference-based usage if needed
+    int marbleDifference(int player, const Board& b) const;
+
+    // If you do partial re-check in caches
+    void recalcCellMetrics(int i, const Board& b,
+                           HeuristicCache& cache,
+                           int centerX, int centerY) const;
+};
+
+#endif // HEURISTIC_CALCULATOR_H

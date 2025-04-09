@@ -15,7 +15,7 @@
 const int ROWS = 9;
 const int COLS = 9;
 
-// TODO: Adjust based on actual color mapping in your application
+// Map for your player colours:
 const std::map<char, int> playerColourMap = {
     {'b', 1},
     {'w', 2}
@@ -26,6 +26,36 @@ const std::map<int, char> printMap = {
     {playerColourMap.at('w'), 'w'},
     {0, '0'},
     {-1, 'X'}
+};
+
+/**
+ * Storing the data needed to undo a move.
+ * We'll record changes to:
+ *  - occupant in any cells that changed (oldVal -> newVal)
+ *  - piece counts
+ */
+struct MoveUndo {
+    struct CellChange {
+        int row;
+        int col;
+        int oldVal;
+        int newVal;
+    };
+
+    // occupant changes
+    std::vector<CellChange> changes;
+
+    // old piece counts
+    int oldNumPlayerOne;
+    int oldNumPlayerTwo;
+
+    // new piece counts
+    int newNumPlayerOne;
+    int newNumPlayerTwo;
+
+    MoveUndo() 
+        : oldNumPlayerOne(0), oldNumPlayerTwo(0),
+          newNumPlayerOne(0), newNumPlayerTwo(0) {}
 };
 
 class Board {
@@ -39,16 +69,14 @@ private:
     int numPlayerOnePieces;
     int numPlayerTwoPieces;
 
-    // Instead of a bool adjacency matrix, we store adjacency as a list of neighbors:
-    // adjacencyList[i] is a list of indices adjacent to cell i.
+    // Adjacency list
     std::vector<std::vector<int>> adjacencyList;
-
-    // Maps from (row, col) to linear index i
+    // Maps from (row, col) to linear index
     std::map<std::pair<int, int>, int> coordToIndex;
-    // Maps back from index i to (row, col)
+    // Maps from index to (row, col)
     std::vector<std::pair<int, int>> indexToCoord;
 
-    // For Zobrist hashing
+    // Zobrist
     static std::array<std::array<std::array<uint64_t, 3>, COLS>, ROWS> zobristTable;
     static bool zobristInitialized;
 
@@ -56,15 +84,13 @@ public:
     // --------------------------------------------------------------------------------
     // Constructor
     // --------------------------------------------------------------------------------
-    // We now require adjacencyList, coordToIndex, indexToCoord from outside.
-    // We assume the "shape" of the board won't change, so we only build them once.
     Board(const std::array<std::array<int, COLS>, ROWS>& matrix,
           const std::vector<std::vector<int>>& adjacencyList,
-          const std::map<std::pair<int, int>, int>& coordToIndex,
-          const std::vector<std::pair<int, int>>& indexToCoord);
+          const std::map<std::pair<int,int>,int>& coordToIndex,
+          const std::vector<std::pair<int,int>>& indexToCoord);
 
     // --------------------------------------------------------------------------------
-    // Static method to produce adjacency data (list + maps) for a given board shape.
+    // Static method to produce adjacency data
     // --------------------------------------------------------------------------------
     static std::tuple<
         std::vector<std::vector<int>>,
@@ -77,7 +103,7 @@ public:
     // Getters
     // --------------------------------------------------------------------------------
     const std::array<std::array<int, COLS>, ROWS>& getBoard() const;
-    const std::vector<std::vector<int>>& getAdjacencyList() const;  // New name
+    const std::vector<std::vector<int>>& getAdjacencyList() const;
     const std::map<std::pair<int, int>, int>& getCoordToIndex() const;
     const std::vector<std::pair<int, int>>& getIndexToCoord() const;
     const int& getNumPlayerOnePieces() const;
@@ -89,14 +115,19 @@ public:
     void placePieces(const std::vector<std::string>& pieces);
 
     // --------------------------------------------------------------------------------
-    // Moves
+    // Mutation in-place (Make/Unmake)
     // --------------------------------------------------------------------------------
+    
     void applyMove(const Move& move);
+    // Applies 'move' to this board, recording all changes into 'undo'
+    void makeMove(const Move& move, MoveUndo& undo);
+    // Reverts changes from 'undo'
+    void unmakeMove(const MoveUndo& undo);
 
     // --------------------------------------------------------------------------------
     // Helpers
     // --------------------------------------------------------------------------------
-    const bool validPosition(const int letterIndex, const int numberIndex) const;
+    bool validPosition(int row, int col) const;
 
     // --------------------------------------------------------------------------------
     // Zobrist Hashing
@@ -104,6 +135,10 @@ public:
     static void initZobrist();
     uint64_t getZobristHash() const;
     bool operator==(const Board& other) const;
+
+    // multithreading
+    bool operator<(const Board& other) const;
+
 
     // --------------------------------------------------------------------------------
     // Printing
@@ -113,19 +148,21 @@ public:
     void printBoard() const;
 
     // --------------------------------------------------------------------------------
-    // TEMP (For Testing) - Creates a list of pieces from a string
+    // TEMP: stringToList
     // --------------------------------------------------------------------------------
     static std::vector<std::string> stringToList(const std::string& pieces);
 
 private:
-    // --------------------------------------------------------------------------------
-    // Helper move methods
-    // --------------------------------------------------------------------------------
-    void moveOnePiece(const Move& move);
-    void movePiecesInline(const Move& move);
-    void movePiecesSideStep(const Move& move);
+    // Helper that records occupant changes in 'undo'
+    void recordCellChange(int row, int col, int oldVal, int newVal, MoveUndo& undo);
+
+    // Sub-helpers for move logic
+    void moveOnePiece(const Move& move, MoveUndo& undo);
+    void movePiecesInline(const Move& move, MoveUndo& undo);
+    void movePiecesSideStep(const Move& move, MoveUndo& undo);
 };
 
+// For storing boards in e.g. an unordered_map
 struct BoardHasher {
     std::size_t operator()(const Board& b) const {
         return static_cast<std::size_t>(b.getZobristHash());

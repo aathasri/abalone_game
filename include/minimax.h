@@ -1,13 +1,12 @@
+// minimax.h
 #ifndef MINIMAX_H
 #define MINIMAX_H
 
 #include "board.h"
-#include "move.h"
-#include "heuristic_calculator.h"
-#include <memory>
-#include <set>
+#include "threadpool.h"
 #include <map>
-#include <vector>
+#include <mutex>
+
 
 struct TTEntry {
     int score;
@@ -18,14 +17,15 @@ struct TTEntry {
 class Minimax {
 public:
     Minimax(int maxDepth);
-    Move findBestMove(const Board& board, int currentPlayer);
-
-private:
-    int minimax(const Board& board, int depth, int currentPlayer,
+    Move findBestMove(Board& board, int currentPlayer);
+    int minimax(Board& board, int depth, int currentPlayer,
                 bool isMaximizing, int alpha, int beta);
-
+private:
     int maxDepth;
-    std::unordered_map<Board, TTEntry, BoardHasher> transpositionTable;
+
+    // Transposition table is shared among threads so we need a mutex.
+    std::map<Board, TTEntry> transpositionTable;
+    std::mutex ttMutex; // Protects transpositionTable
 };
 
-#endif
+#endif // MINIMAX_H

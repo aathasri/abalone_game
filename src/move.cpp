@@ -7,7 +7,6 @@
  * --------------------------------------------------------------------------------
  */ 
 
-// Print direction enum
 std::ostream& operator<<(std::ostream& os, MoveDirection dir) {
     switch (dir) {
         case MoveDirection::W:  return os << "West";
@@ -20,8 +19,6 @@ std::ostream& operator<<(std::ostream& os, MoveDirection dir) {
     }
 }
 
-
-
 /** 
  * --------------------------------------------------------------------------------
  * Direction Helper
@@ -29,10 +26,10 @@ std::ostream& operator<<(std::ostream& os, MoveDirection dir) {
  */ 
 
 const std::array<std::pair<int, int>, static_cast<int>(MoveDirection::COUNT)> DirectionHelper::directionArray = {
-    std::make_pair(0, -1),   // W
-    std::make_pair(-1, 0),    // NW
-    std::make_pair(-1, 1),    // NE
-    std::make_pair(0, 1),    // E
+    std::make_pair(0, -1),  // W
+    std::make_pair(-1, 0),  // NW
+    std::make_pair(-1, 1),  // NE
+    std::make_pair(0, 1),   // E
     std::make_pair(1, 0),   // SE
     std::make_pair(1, -1)   // SW
 };
@@ -64,24 +61,19 @@ std::vector<std::pair<MoveDirection, MoveDirection>> DirectionHelper::getPerpend
     }
 }
 
-
-
 /** 
  * --------------------------------------------------------------------------------
  * Move Type
  * --------------------------------------------------------------------------------
  */ 
 
-// Print Move Type Enum
 std::ostream& operator<<(std::ostream& os, MoveType type) {
     switch (type) {
-        case MoveType::SIDESTEP:    return os << "s";
-        case MoveType::INLINE:      return os << "i";
-        default:                    return os << "Unknown";
+        case MoveType::SIDESTEP: return os << "s";
+        case MoveType::INLINE:   return os << "i";
+        default:                 return os << "Unknown";
     }
 }
-
-
 
 /** 
  * --------------------------------------------------------------------------------
@@ -89,32 +81,30 @@ std::ostream& operator<<(std::ostream& os, MoveType type) {
  * --------------------------------------------------------------------------------
  */ 
 
- Move::Move() {}
+Move::Move() {}
 
- Move::Move(MoveType typ, MoveDirection dir)
- : type(typ), direction(dir), size(0), positions{} {}
+Move::Move(MoveType typ, MoveDirection dir)
+    : type(typ), direction(dir), size(0), positions{} {}
 
- void Move::addPosition(int col, int row) {
-    if (size >= 3) return;
+void Move::addPosition(int row, int col) {
+    if (size >= 3) return;  // We never have more than 3 marbles in a line
 
-    std::pair<int, int> newPos = {col, row};
-
-    auto insertAt = size; // default to append at end
+    std::pair<int, int> newPos = {row, col}; // (letter, number)
+    int insertAt = size;  // We'll do insertion-sort logic
 
     if (type == MoveType::INLINE) {
-        // Inline logic: use directional projection
         auto [dx, dy] = DirectionHelper::getDelta(direction);
-
         auto projection = [dx, dy](std::pair<int, int> pos) {
             return pos.first * dx + pos.second * dy;
         };
-
-        while (insertAt > 0 && projection(positions[insertAt - 1]) < projection(newPos)) {
+        while (insertAt > 0 &&
+               projection(positions[insertAt - 1]) < projection(newPos)) 
+        {
             positions[insertAt] = positions[insertAt - 1];
             --insertAt;
         }
-    } else if (type == MoveType::SIDESTEP) {
-        // Sidestep logic: sort lexicographically (row, col)
+    }
+    else if (type == MoveType::SIDESTEP) {
         while (insertAt > 0 && positions[insertAt - 1] > newPos) {
             positions[insertAt] = positions[insertAt - 1];
             --insertAt;

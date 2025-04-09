@@ -6,23 +6,31 @@ void MoveGenerator::generateMoves(int currentPlayerColour, const Board& currentB
     int opponentPlayerColour = 3 - currentPlayerColour;
     int countCurrentPlayer = 0;
 
-    for (int i = ROWS - 1; i > 0; i--) {
+    // Iterate through all board rows (including row 0)
+    for (int i = ROWS - 1; i >= 0; i--) {
         for (int j = 0; j < COLS; j++) {
-            if (!currentBoard.validPosition(i, j) || board[i][j] != currentPlayerColour) continue;
+            // Skip if invalid or not current player's piece.
+            if (!currentBoard.validPosition(i, j) || board[i][j] != currentPlayerColour)
+                continue;
 
+            // Consider every move direction.
             for (int k = 0; k < static_cast<int>(MoveDirection::COUNT); k++) {
                 int dx = DirectionHelper::getDelta(k).first;
                 int dy = DirectionHelper::getDelta(k).second;
 
                 int nx = i + dx;
                 int ny = j + dy;
-                if (!currentBoard.validPosition(nx, ny)) continue;
-
+                if (!currentBoard.validPosition(nx, ny))
+                    continue;
+                
+                // Case 1: Forward neighbor is empty --> Normal moves.
                 if (board[nx][ny] == 0) {
+                    // Single inline move.
                     Move singleMove(MoveType::INLINE, static_cast<MoveDirection>(k));
                     singleMove.addPosition(i, j);
                     generated_moves.insert(singleMove);
 
+                    // Generate broadside moves (sidesteps) using perpendicular directions.
                     for (const auto& [p1, p2] : DirectionHelper::getPerpendiculars(static_cast<MoveDirection>(k))) {
                         int dx1 = DirectionHelper::getDelta(p1).first;
                         int dy1 = DirectionHelper::getDelta(p1).second;
@@ -61,6 +69,7 @@ void MoveGenerator::generateMoves(int currentPlayerColour, const Board& currentB
                         }
                     }
 
+                    // Inline group moves (moving backward for contiguous friendly group)
                     int tx = i - dx;
                     int ty = j - dy;
                     if (currentBoard.validPosition(tx, ty) && board[tx][ty] == currentPlayerColour) {
@@ -81,15 +90,19 @@ void MoveGenerator::generateMoves(int currentPlayerColour, const Board& currentB
                     }
                 }
 
+                // Case 2: Forward neighbor contains an opponent --> Push moves.
                 if (board[nx][ny] == opponentPlayerColour) {
                     int opp2x = i + 2 * dx;
                     int opp2y = j + 2 * dy;
-                    bool secondValid = currentBoard.validPosition(opp2x, opp2y);
-                    bool secondEmpty = secondValid && board[opp2x][opp2y] == 0;
+                    // For 2 vs 1 push, consider the landing cell "empty" if it is off-board.
+                    bool secondEmpty = !currentBoard.validPosition(opp2x, opp2y)
+                                         ? true
+                                         : (board[opp2x][opp2y] == 0);
 
                     int tx = i - dx;
                     int ty = j - dy;
                     if (secondEmpty && currentBoard.validPosition(tx, ty) && board[tx][ty] == currentPlayerColour) {
+                        // 2 vs 1 push.
                         Move doublePush(MoveType::INLINE, static_cast<MoveDirection>(k));
                         doublePush.addPosition(i, j);
                         doublePush.addPosition(tx, ty);
@@ -98,6 +111,7 @@ void MoveGenerator::generateMoves(int currentPlayerColour, const Board& currentB
                         int ttx = i - 2 * dx;
                         int tty = j - 2 * dy;
                         if (currentBoard.validPosition(ttx, tty) && board[ttx][tty] == currentPlayerColour) {
+                            // 3 vs 1 push.
                             Move triplePush(MoveType::INLINE, static_cast<MoveDirection>(k));
                             triplePush.addPosition(i, j);
                             triplePush.addPosition(tx, ty);
@@ -106,7 +120,11 @@ void MoveGenerator::generateMoves(int currentPlayerColour, const Board& currentB
                         }
                     }
 
-                    if (secondValid && board[opp2x][opp2y] == opponentPlayerColour) {
+                    // For 3 vs 2 push, now allow the push even if the second opponent is off-board.
+                    bool secondValidOrOpponent = !currentBoard.validPosition(opp2x, opp2y)
+                                                   ? true
+                                                   : (board[opp2x][opp2y] == opponentPlayerColour);
+                    if (secondValidOrOpponent) {
                         int opp3x = i + 3 * dx;
                         int opp3y = j + 3 * dy;
                         bool thirdValid = potentialPushPositionValid(opp3x, opp3y, currentBoard);
@@ -115,6 +133,7 @@ void MoveGenerator::generateMoves(int currentPlayerColour, const Board& currentB
                         int tx3 = i - 2 * dx;
                         int ty3 = j - 2 * dy;
 
+                        // 3 vs 2 push.
                         if (thirdValid && currentBoard.validPosition(tx2, ty2) && board[tx2][ty2] == currentPlayerColour &&
                             currentBoard.validPosition(tx3, ty3) && board[tx3][ty3] == currentPlayerColour) {
                             Move triplePush(MoveType::INLINE, static_cast<MoveDirection>(k));
@@ -126,7 +145,6 @@ void MoveGenerator::generateMoves(int currentPlayerColour, const Board& currentB
                     }
                 }
             }
-
             if (++countCurrentPlayer > 14) return;
         }
     }
