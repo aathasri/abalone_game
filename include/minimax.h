@@ -16,8 +16,9 @@ enum class BoundType { EXACT, LOWER, UPPER };
 struct TTEntry {
     int score;
     int depth;
-    bool isMaxNode;
+    bool isMaximizing;
     BoundType flag;
+    Move bestMove;   // New field: best move found at this node.
 };
 
 class ShardedTranspositionTable {

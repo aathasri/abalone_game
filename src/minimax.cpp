@@ -130,11 +130,11 @@ int Minimax::minimax(Board& board, int depth, int currentPlayer,
     }
 
     if (depth == 0) {
-        // When the iterative deepening depth is reached, continue with quiescence search
-        // (which can extend evaluation beyond the iterative deepening depth limit).
+        // Continue with quiescence search at the leaf level.
         int score = quiescenceSearch(board, currentPlayer, isMaximizing,
                                      alpha, beta, nodeCount, stopSearch);
-        transpositionTable.insert(hash, { score, depth, isMaximizing, BoundType::EXACT });
+        // Save the leaf evaluation along with an invalid move.
+        transpositionTable.insert(hash, { score, depth, isMaximizing, BoundType::EXACT, Move() });
         return score;
     }
 
@@ -143,16 +143,24 @@ int Minimax::minimax(Board& board, int depth, int currentPlayer,
     std::set<Move> moves = moveGen.getGeneratedMoves();
     if (moves.empty()) {
         int score = hcalc.calculateHeuristic(board);
-        transpositionTable.insert(hash, { score, depth, isMaximizing, BoundType::EXACT });
+        transpositionTable.insert(hash, { score, depth, isMaximizing, BoundType::EXACT, Move() });
         return score;
     }
 
+    // Build an ordered list of moves.
     struct MoveOrderChild {
         Move move;
         int heuristic;
     };
     std::vector<MoveOrderChild> childOrder;
     childOrder.reserve(moves.size());
+    
+    // If the transposition table had a best move, try to put it first.
+    Move ttBestMove;
+    if (transpositionTable.lookup(hash, entry)) {
+        ttBestMove = entry.bestMove;
+    }
+    
     int counter = 0;
     for (const auto& m : moves) {
         if(stopSearch.load())
@@ -168,7 +176,17 @@ int Minimax::minimax(Board& board, int depth, int currentPlayer,
                 return isMaximizing ? alpha : beta;
         }
     }
-    std::sort(childOrder.begin(), childOrder.end(),
+    // If ttBestMove is valid and found in our child list, place it at the front.
+    if (ttBestMove.getSize() > 0) {
+        auto it = std::find_if(childOrder.begin(), childOrder.end(),
+                     [&ttBestMove](const MoveOrderChild& child) { return child.move == ttBestMove; });
+        if (it != childOrder.end()) {
+            std::iter_swap(childOrder.begin(), it);
+        }
+    }
+    
+    // Otherwise, sort the remainder by heuristic (if not already ordered by TT move).
+    std::sort(childOrder.begin() + (ttBestMove.getSize() > 0 ? 1 : 0), childOrder.end(),
               [isMaximizing](const MoveOrderChild& a, const MoveOrderChild& b) {
                   return isMaximizing ? (a.heuristic > b.heuristic)
                                       : (a.heuristic < b.heuristic);
@@ -176,6 +194,7 @@ int Minimax::minimax(Board& board, int depth, int currentPlayer,
 
     int originalAlpha = alpha;
     int bestScore = isMaximizing ? std::numeric_limits<int>::min() : std::numeric_limits<int>::max();
+    Move bestMoveFound;
     counter = 0;
     for (auto& child : childOrder) {
         if(stopSearch.load())
@@ -185,10 +204,16 @@ int Minimax::minimax(Board& board, int depth, int currentPlayer,
         int result = minimax(board, depth - 1, 3 - currentPlayer, !isMaximizing, alpha, beta);
         board.unmakeMove(undo);
         if (isMaximizing) {
-            bestScore = std::max(bestScore, result);
+            if (result > bestScore) {
+                bestScore = result;
+                bestMoveFound = child.move;
+            }
             alpha = std::max(alpha, bestScore);
         } else {
-            bestScore = std::min(bestScore, result);
+            if (result < bestScore) {
+                bestScore = result;
+                bestMoveFound = child.move;
+            }
             beta = std::min(beta, bestScore);
         }
         if (++counter % 2 == 0) {
@@ -205,7 +230,8 @@ int Minimax::minimax(Board& board, int depth, int currentPlayer,
         flag = BoundType::UPPER;
     else if (bestScore >= beta)
         flag = BoundType::LOWER;
-    transpositionTable.insert(hash, { bestScore, depth, isMaximizing, flag });
+    // Store the best move from this node along with the score.
+    transpositionTable.insert(hash, { bestScore, depth, isMaximizing, flag, bestMoveFound });
     return bestScore;
 }
 
@@ -222,8 +248,9 @@ static inline bool timeExpired(const std::chrono::steady_clock::time_point& star
 // --------------------------------------------------------------------------
 // Iterative deepening search with a time limit (minus a buffer), cancellation,
 // and nonblocking waits on futures to cancel outstanding tasks.
-// Iterative deepening stops when searchDepth exceeds maxDepth (as configured),
-// but quiescence search is allowed to extend evaluation beyond that depth.
+// Note: We now keep the transposition table data across iterations.
+// ... [Other parts of the file remain unchanged]
+
 Move Minimax::findBestMove(Board& board, int currentPlayer) {
     HeuristicCalculator hcalc;
     Move bestMoveOverall;               // Best move from the last fully completed depth.
@@ -235,7 +262,7 @@ Move Minimax::findBestMove(Board& board, int currentPlayer) {
     }
 
     // Reset shared state.
-    transpositionTable.clear();
+    transpositionTable.clear();  // Clear once at the very start.
     nodeCount = 0;
     stopSearch.store(false);
 
@@ -249,15 +276,32 @@ Move Minimax::findBestMove(Board& board, int currentPlayer) {
         return Move();
     }
 
-    // Effective search time is overall time limit minus the buffer.
+    // Effective search time: overall time limit minus the buffer (in seconds).
     double effectiveTimeLimit = static_cast<double>(timeLimitSeconds - bufferTimeSeconds);
     auto startTime = std::chrono::steady_clock::now();
 
     int searchDepth = 1;
+    double lastDepthTimeMs = 0.0;         // Duration of last completed depth (ms).
+    const double growthFactor = 2.0;        // Estimated multiplier for time increase per depth.
+
     while (!timeExpired(startTime, effectiveTimeLimit) && searchDepth <= maxDepth) {
-        // Optionally: you may opt not to clear the transposition table for faster reuse.
-        transpositionTable.clear();
+        // Before starting, check if we want to begin this new depth based on estimate.
+        if (searchDepth > 1 && lastDepthTimeMs > 0.0) {
+            // Estimate the next depth time.
+            double estimatedNextDepthTimeMs = lastDepthTimeMs * growthFactor;
+            auto now = std::chrono::steady_clock::now();
+            double elapsedMs = std::chrono::duration<double, std::milli>(now - startTime).count();
+            double remainingMs = effectiveTimeLimit * 1000.0 - elapsedMs;
+            if (estimatedNextDepthTimeMs > remainingMs) {
+                std::cout << "Not starting depth " << searchDepth << " because estimated time (" 
+                          << estimatedNextDepthTimeMs << " ms) exceeds remaining time (" 
+                          << remainingMs << " ms).\n";
+                break;
+            }
+        }
+
         std::cout << "Starting search at depth " << searchDepth << "...\n";
+        auto depthStartTime = std::chrono::steady_clock::now();
 
         // Order the root moves with a quick heuristic.
         struct MoveOrderItem {
@@ -267,6 +311,8 @@ Move Minimax::findBestMove(Board& board, int currentPlayer) {
         std::vector<MoveOrderItem> ordering;
         ordering.reserve(allMoves.size());
         for (const Move& mv : allMoves) {
+            if(stopSearch.load())
+                break;
             MoveUndo undo;
             board.makeMove(mv, undo);
             int quickScore = hcalc.calculateHeuristic(board);
@@ -279,12 +325,12 @@ Move Minimax::findBestMove(Board& board, int currentPlayer) {
                   });
 
         // Launch parallel tasks for the root moves.
-        unsigned int numCores = std::thread::hardware_concurrency();
-        if (numCores == 0)
-            numCores = 2;
+        unsigned int numCores = 4;
+        // unsigned int numCores = std::thread::hardware_concurrency();
+        // if (numCores == 0).
+            // numCores = 2;
         size_t totalMoves = ordering.size();
         size_t groupSize = (totalMoves + numCores - 1) / numCores;
-        // Create a ThreadPool instance.
         ThreadPool pool(numCores);
         std::vector<std::future<std::pair<int, Move>>> futures;
 
@@ -343,7 +389,12 @@ Move Minimax::findBestMove(Board& board, int currentPlayer) {
 
         bestMoveOverall = localBestMove;
         bestScoreOverall = localBestScore;
-        std::cout << "Depth " << searchDepth << " completed. Best score: " 
+
+        auto depthEndTime = std::chrono::steady_clock::now();
+        lastDepthTimeMs = std::chrono::duration<double, std::milli>(depthEndTime - depthStartTime).count();
+
+        std::cout << "Depth " << searchDepth << " completed in " 
+                  << lastDepthTimeMs << " ms. Best score: " 
                   << localBestScore << "\n";
 
         ++searchDepth;

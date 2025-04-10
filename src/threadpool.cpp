@@ -1,7 +1,9 @@
+// threadpool.cpp
+
 #include "threadpool.h"
 
 ThreadPool::ThreadPool(size_t threads)
-    : stop(false), canceled(false)
+    : stop(false)
 {
     for (size_t i = 0; i < threads; ++i) {
         workers.emplace_back([this]() {
@@ -9,16 +11,19 @@ ThreadPool::ThreadPool(size_t threads)
                 std::function<void()> task;
                 {
                     std::unique_lock<std::mutex> lock(this->queue_mutex);
-                    // Wait until there is a task, or stop is true, or cancellation is requested.
+                    // Wait until there is a task or until stop == true.
                     this->condition.wait(lock, [this] {
-                        return this->stop || this->canceled.load() || !this->tasks.empty();
+                        return this->stop || !this->tasks.empty();
                     });
-                    // If cancellation is requested or the pool is stopping and no tasks remain, exit.
-                    if ((this->stop && this->tasks.empty()) || this->canceled.load())
+                    // If cancellation is requested and there are no tasks left,
+                    // exit immediately.
+                    if (this->stop && this->tasks.empty())
                         return;
                     task = std::move(this->tasks.front());
                     this->tasks.pop();
                 }
+                // Execute the task only if we're not cancelled in the middle.
+                // (Optionally, tasks themselves should check for cancellation too.)
                 task();
             }
         });
@@ -27,23 +32,22 @@ ThreadPool::ThreadPool(size_t threads)
 
 ThreadPool::~ThreadPool()
 {
-    {
-        std::unique_lock<std::mutex> lock(queue_mutex);
-        stop = true;
-    }
-    condition.notify_all();
+    cancel();  // Cancel all pending tasks and signal threads to exit.
     for (std::thread &worker : workers)
         if (worker.joinable())
             worker.join();
 }
 
-void ThreadPool::cancelTasks() {
-    std::unique_lock<std::mutex> lock(queue_mutex);
-    // Set cancellation flag.
-    canceled.store(true);
-    // Clear all pending tasks.
-    while (!tasks.empty()) {
-        tasks.pop();
+// NEW: Cancel function that does immediate cancellation.
+void ThreadPool::cancel() {
+    {
+        std::unique_lock<std::mutex> lock(queue_mutex);
+        stop = true;
+        // Clear all pending tasks from the queue.
+        while (!tasks.empty()) {
+            tasks.pop();
+        }
     }
+    // Notify all workers immediately so they can check the stop flag and exit.
     condition.notify_all();
 }

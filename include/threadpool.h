@@ -15,39 +15,32 @@
 
 class ThreadPool {
 public:
-    // Constructor & Destructor
     ThreadPool(size_t threads);
     ~ThreadPool();
-
-    // Enqueue a task into the thread pool.
+    
+    // Enqueue a task into the pool.
     template<class F, class... Args>
     auto enqueue(F&& f, Args&&... args)
-      -> std::future<typename std::invoke_result<F, Args...>::type>;
-
-    // Cancel all pending tasks.
-    void cancelTasks();
-
+        -> std::future<typename std::invoke_result<F, Args...>::type>;
+    
+    // Immediately cancel all pending tasks.
+    void cancel();
+    
 private:
     // Worker threads.
     std::vector<std::thread> workers;
     // Task queue.
     std::queue<std::function<void()>> tasks;
     
-    // Synchronization.
     std::mutex queue_mutex;
     std::condition_variable condition;
-    
-    // Flag to indicate that the thread pool is stopping.
     bool stop;
-    
-    // Cancellation flag to indicate that pending tasks should be canceled.
-    std::atomic<bool> canceled;
 };
 
 // Template implementation defined in the header.
 template<class F, class... Args>
 auto ThreadPool::enqueue(F&& f, Args&&... args)
-  -> std::future<typename std::invoke_result<F, Args...>::type>
+    -> std::future<typename std::invoke_result<F, Args...>::type>
 {
     using return_type = typename std::invoke_result<F, Args...>::type;
 

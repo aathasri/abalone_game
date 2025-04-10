@@ -7,23 +7,16 @@
 #include <algorithm>
 
 // --------------------------------------------------------------------------
-// STATIC WEIGHTS - Already updated as per suggestion 1
+// STATIC WEIGHTS - Updated; cohesion, prox, and isolation removed
 // --------------------------------------------------------------------------
-
-int HeuristicCalculator::W_COHESION_AI     = 0;
-int HeuristicCalculator::W_COHESION_OPP    = 0;
-int HeuristicCalculator::W_PUSH_AI         = 40; 
-int HeuristicCalculator::W_PUSH_OPP        = 0;
-int HeuristicCalculator::W_VULN_AI         = 0;
-int HeuristicCalculator::W_VULN_OPP        = 65;
-int HeuristicCalculator::W_ISOLATED_AI     = 40;
-int HeuristicCalculator::W_ISOLATED_OPP    = 0;
-int HeuristicCalculator::W_PROX_AI         = 50;
-int HeuristicCalculator::W_PROX_OPP        = 0;
-int HeuristicCalculator::W_MDIFF           = 850;
+int HeuristicCalculator::W_PUSH_AI   = 40; 
+int HeuristicCalculator::W_PUSH_OPP  = 200;
+int HeuristicCalculator::W_VULN_AI   = 90;
+int HeuristicCalculator::W_VULN_OPP  = 65;
+int HeuristicCalculator::W_MDIFF     = 850;
 
 // --------------------------------------------------------------------------
-// selectBoard(...) - picks the board with the best heuristic from a list
+// selectBoard(...) - Picks the board with the best heuristic from a list
 // --------------------------------------------------------------------------
 Board HeuristicCalculator::selectBoard(std::vector<Board> generatedBoards) const
 {
@@ -43,12 +36,11 @@ Board HeuristicCalculator::selectBoard(std::vector<Board> generatedBoards) const
 }
 
 // --------------------------------------------------------------------------
-// The main Heuristic (AI perspective):
-// occupant code 1 = Opponent, occupant code 2 = AI (Computer)
+// calculateHeuristic(...) - Main Heuristic (AI perspective):
+//   occupant code 1 = Opponent, occupant code 2 = AI (Computer)
 // --------------------------------------------------------------------------
 int HeuristicCalculator::calculateHeuristic(const Board& b) const
 {
-    // Fix the role assignments: Player 2 (occupant 2) is AI, Player 1 (occupant 1) is Opponent.
     const int AIuser   = 2;
     const int Opponent = 1;
 
@@ -61,29 +53,15 @@ int HeuristicCalculator::calculateHeuristic(const Board& b) const
         return 0;
     }
 
-    // Initialize metrics for both occupant codes. We use indices 1 and 2.
-    int cohesion[3]      = {0, 0, 0};
+    // Initialize metrics only for push potential and vulnerability.
     int pushPotential[3] = {0, 0, 0};
     int vulnerability[3] = {0, 0, 0};
-    int isolated[3]      = {0, 0, 0};
-    int proximity[3]     = {0, 0, 0};
 
-    // Define flags for whether to compute each heuristic metric.
-    bool computeCohesion      = (W_COHESION_AI != 0 || W_COHESION_OPP != 0);
-    bool computePushPotential = (W_PUSH_AI != 0 || W_PUSH_OPP != 0);
-    bool computeVulnerability = (W_VULN_AI != 0 || W_VULN_OPP != 0);
-    bool computeIsolated      = (W_ISOLATED_AI != 0 || W_ISOLATED_OPP != 0);
-    bool computeProximity     = (W_PROX_AI != 0 || W_PROX_OPP != 0);
-
-    int centerX = ROWS / 2;
-    int centerY = COLS / 2;
-
-    // Number of marbles (opponent pieces are on board positions for occupant code 1;
-    // AI pieces are on positions for occupant code 2).
+    // Get marble counts.
     int oppMarbles = b.getNumPlayerOnePieces();  // Opponent: occupant code 1
-    int aiMarbles  = b.getNumPlayerTwoPieces();  // AI: occupant code 2
+    int aiMarbles  = b.getNumPlayerTwoPieces();    // AI: occupant code 2
 
-    // Tally stats (compute only those metrics with non-zero weights)
+    // Tally stats for each cell.
     for (int i = 0; i < static_cast<int>(coords.size()); ++i) {
         auto [x, y] = coords[i];
         int occupant = board[x][y];
@@ -91,55 +69,29 @@ int HeuristicCalculator::calculateHeuristic(const Board& b) const
             continue;
         }
 
-        // Calculate proximity (using Manhattan distance from center)
-        if (computeProximity) {
-            int dist = std::abs(x - centerX) + std::abs(y - centerY);
-            proximity[occupant] += std::max(0, 10 - dist);
+        int enemies = 0;
+        // Check all neighboring cells.
+        for (int neighborIdx : adjList[i]) {
+            auto [nx, ny] = coords[neighborIdx];
+            int neighbor = board[nx][ny];
+            if (neighbor == (3 - occupant)) {
+                pushPotential[occupant]++;
+                enemies++;
+            }
         }
-
-        if (computeCohesion || computePushPotential || computeVulnerability || computeIsolated) {
-            int allies = 0, enemies = 0;
-            // Look at all neighboring cells (using the adjacency list)
-            for (int neighborIdx : adjList[i]) {
-                auto [nx, ny] = coords[neighborIdx];
-                int neighbor = board[nx][ny];
-                if (neighbor == occupant) {
-                    if (computeCohesion) {
-                        cohesion[occupant]++;
-                    }
-                    allies++;
-                } else if (neighbor == (3 - occupant)) {
-                    if (computePushPotential) {
-                        // Remove edge-based extra incentive; just count enemy once.
-                        pushPotential[occupant]++;
-                    }
-                    enemies++;
-                }
-            }
-            if (computeIsolated && allies == 0) {
-                isolated[occupant]++;
-            }
-            if (computeVulnerability && enemies >= 2) {
-                vulnerability[occupant]++;
-            }
+        if (enemies >= 2) {
+            vulnerability[occupant]++;
         }
     }
 
-    // Compute weighted sum from the AI's perspective
+    // Compute weighted sum from the AI's perspective.
     int score = 0;
-    score += (W_COHESION_AI  * cohesion[AIuser])    - (W_COHESION_OPP * cohesion[Opponent]);
-    score += (W_PUSH_AI      * pushPotential[AIuser]) - (W_PUSH_OPP    * pushPotential[Opponent]);
-    score -= (W_VULN_AI      * vulnerability[AIuser]);
-    score += (W_VULN_OPP     * vulnerability[Opponent]);
-    score -= (W_ISOLATED_AI  * isolated[AIuser]);
-    score += (W_ISOLATED_OPP * isolated[Opponent]);
-    score += (W_PROX_AI      * proximity[AIuser])     - (W_PROX_OPP    * proximity[Opponent]);
+    score += (W_PUSH_AI  * pushPotential[AIuser])    - (W_PUSH_OPP * pushPotential[Opponent]);
+    score -= (W_VULN_AI  * vulnerability[AIuser]);
+    score += (W_VULN_OPP * vulnerability[Opponent]);
 
-    // Marble difference contribution (favors AI if it has more pieces than the opponent)
     int mDiff = (aiMarbles - oppMarbles);
     score += (W_MDIFF * mDiff);
-
-    // Removed the edge bonus block entirely.
 
     return score;
 }
@@ -155,7 +107,7 @@ int HeuristicCalculator::marbleDifference(int player, const Board& b) const
 }
 
 // --------------------------------------------------------------------------
-// (Optional) For incremental caching, these remain mostly the same
+// initHeuristicCache(...) - For incremental caching (adjusted)
 // --------------------------------------------------------------------------
 HeuristicCache HeuristicCalculator::initHeuristicCache(const Board& b) const
 {
@@ -170,59 +122,51 @@ HeuristicCache HeuristicCalculator::initHeuristicCache(const Board& b) const
     }
 
     cache.occupant.resize(coords.size(), 0);
-    cache.allyCount.resize(coords.size(), 0);
     cache.enemyCount.resize(coords.size(), 0);
-    cache.proximity.resize(coords.size(), 0);
+    // Removed allyCount and proximity since they are no longer used.
 
     cache.marbleCountP1 = b.getNumPlayerOnePieces();
     cache.marbleCountP2 = b.getNumPlayerTwoPieces();
-
-    int centerX = ROWS / 2;
-    int centerY = COLS / 2;
 
     for (int i = 0; i < static_cast<int>(coords.size()); ++i) {
         auto [x, y] = coords[i];
         cache.occupant[i] = boardArr[x][y];
     }
 
-    int cohesion[3]      = {0, 0, 0};
+    // Only accumulate metrics for push potential and vulnerability.
     int pushPotential[3] = {0, 0, 0};
     int vulnerability[3] = {0, 0, 0};
-    int isolated[3]      = {0, 0, 0};
-    int proximityArr[3]  = {0, 0, 0};
 
+    int centerX = ROWS / 2;
+    int centerY = COLS / 2;
     for (int i = 0; i < static_cast<int>(coords.size()); ++i) {
         recalcCellMetrics(i, b, cache, centerX, centerY);
-
         int occupant = cache.occupant[i];
         if (occupant != 1 && occupant != 2) {
             continue;
         }
-
-        proximityArr[occupant] += cache.proximity[i];
-
-        int allies  = cache.allyCount[i];
         int enemies = cache.enemyCount[i];
-        if (allies == 0) isolated[occupant]++;
-        if (enemies >= 2) vulnerability[occupant]++;
-        cohesion[occupant]      += allies;
         pushPotential[occupant] += enemies;
+        if (enemies >= 2)
+            vulnerability[occupant]++;
     }
 
     int score = 0;
-    score += (cohesion[1]      - cohesion[2]);
-    score += (pushPotential[1] - pushPotential[2]);
-    score += (vulnerability[2] - vulnerability[1]);
-    score += (isolated[2]      - isolated[1]);
-    score += (proximityArr[1]  - proximityArr[2]);
+    // Note: AI is code 2 and Opponent is code 1.
+    score += (W_PUSH_AI      * pushPotential[2]) - (W_PUSH_OPP * pushPotential[1]);
+    score -= (W_VULN_AI      * vulnerability[2]);
+    score += (W_VULN_OPP     * vulnerability[1]);
     int p1Count = b.getNumPlayerOnePieces();
     int p2Count = b.getNumPlayerTwoPieces();
-    score += (p1Count - p2Count);
-
+    score += (W_MDIFF * (p2Count - p1Count));
+    
     cache.totalHeuristic = score;
     return cache;
 }
 
+// --------------------------------------------------------------------------
+// updateHeuristicCache(...) - Adjusted for removed metrics
+// --------------------------------------------------------------------------
 HeuristicCache HeuristicCalculator::updateHeuristicCache(
     const Board& parentBoard,
     const HeuristicCache& parentCache,
@@ -272,10 +216,9 @@ HeuristicCache HeuristicCalculator::updateHeuristicCache(
         newCache.occupant[i] = boardArr[x][y];
     }
 
+    // Only enemyCount is needed.
     for (int i : extended) {
-        newCache.allyCount[i]  = 0;
         newCache.enemyCount[i] = 0;
-        newCache.proximity[i]  = 0;
     }
 
     int centerX = ROWS / 2;
@@ -294,7 +237,7 @@ int HeuristicCalculator::getCachedHeuristic(const HeuristicCache& cache) const
 }
 
 // --------------------------------------------------------------------------
-// Recompute adjacency and proximity for cell i, if needed
+// recalcCellMetrics(...) - Recompute enemy count for cell i only
 // --------------------------------------------------------------------------
 void HeuristicCalculator::recalcCellMetrics(
     int i, 
@@ -310,27 +253,16 @@ void HeuristicCalculator::recalcCellMetrics(
 
     auto [x, y] = coords[i];
     int occupant = boardArr[x][y];
-
-    cache.allyCount[i]  = 0;
-    cache.enemyCount[i] = 0;
-    cache.proximity[i]  = 0;
-
-    if (occupant != 1 && occupant != 2) {
-        cache.occupant[i] = occupant; // 0 or -1
-        return;
-    }
-
     cache.occupant[i] = occupant;
 
-    int dist = std::abs(x - centerX) + std::abs(y - centerY);
-    cache.proximity[i] = std::max(0, 10 - dist);
+    // Reset enemy count.
+    cache.enemyCount[i] = 0;
 
+    // Compute only the enemy count (used in push potential and vulnerability).
     for (int neighborIdx : adjList[i]) {
         auto [nx, ny] = coords[neighborIdx];
         int neighVal = boardArr[nx][ny];
-        if (neighVal == occupant) {
-            cache.allyCount[i]++;
-        } else if (neighVal == 3 - occupant) {
+        if (neighVal == 3 - occupant) {
             cache.enemyCount[i]++;
         }
     }
