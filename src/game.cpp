@@ -11,7 +11,7 @@ Game::Game(const GameSettings& settings)
       turnCount(0),
       moveCountP1(0),
       moveCountP2(0),
-      ai(4, settings.getMoveTimeLimit(2), 1),  // Construct AI with maxDepth=4, time limit from settings, and a 1-second buffer.
+      ai(5, settings.getMoveTimeLimit(2), 1),  // Construct AI with maxDepth=4, time limit from settings, and a 1-second buffer.
       overTimeLimitCount(0)  // Initialize overtime counter.
 {
     currentPlayer = settings.getPlayerColourMap().at(PlayerColour::BLACK);

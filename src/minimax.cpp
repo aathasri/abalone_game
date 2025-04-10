@@ -1,3 +1,5 @@
+// minimax.cpp (optimized with heuristic caching)
+
 #include "minimax.h"
 #include "move_generator.h"
 #include "heuristic_calculator.h"
@@ -19,13 +21,7 @@ int Minimax::minimax(Board& board, int depth, int currentPlayer, bool isMaximizi
     if (stopSearch.load()) return isMaximizing ? alpha : beta;
 
     ++nodeCount;
-    HeuristicCalculator hcalc;
     uint64_t hash = board.getZobristHash();
-
-    int p1 = board.getNumPlayerOnePieces();
-    int p2 = board.getNumPlayerTwoPieces();
-    if (p1 <= 8) return 100000;
-    if (p2 <= 8) return -100000;
 
     TTEntry entry;
     if (transpositionTable.lookup(hash, entry) && entry.depth >= depth) {
@@ -34,7 +30,13 @@ int Minimax::minimax(Board& board, int depth, int currentPlayer, bool isMaximizi
         if (entry.flag == BoundType::UPPER && entry.score <= alpha) return entry.score;
     }
 
+    int p1 = board.getNumPlayerOnePieces();
+    int p2 = board.getNumPlayerTwoPieces();
+    if (p1 <= 8) return 100000;
+    if (p2 <= 8) return -100000;
+
     if (depth == 0) {
+        HeuristicCalculator hcalc;
         int score = hcalc.calculateHeuristic(board);
         transpositionTable.insert(hash, { score, depth, isMaximizing, BoundType::EXACT, Move() });
         return score;
@@ -45,6 +47,7 @@ int Minimax::minimax(Board& board, int depth, int currentPlayer, bool isMaximizi
     std::set<Move> moves = moveGen.getGeneratedMoves();
 
     if (moves.empty()) {
+        HeuristicCalculator hcalc;
         int score = hcalc.calculateHeuristic(board);
         transpositionTable.insert(hash, { score, depth, isMaximizing, BoundType::EXACT, Move() });
         return score;
@@ -54,9 +57,18 @@ int Minimax::minimax(Board& board, int depth, int currentPlayer, bool isMaximizi
     for (const auto& m : moves) {
         MoveUndo undo;
         board.makeMove(m, undo);
-        int score = hcalc.calculateHeuristic(board);
+        uint64_t childHash = board.getZobristHash();
+        int heuristic;
+        TTEntry childEntry;
+        if (transpositionTable.lookup(childHash, childEntry)) {
+            heuristic = childEntry.score;
+        } else {
+            HeuristicCalculator hcalc;
+            heuristic = hcalc.calculateHeuristic(board);
+            transpositionTable.insert(childHash, { heuristic, 0, isMaximizing, BoundType::EXACT, Move() });
+        }
         board.unmakeMove(undo);
-        orderedMoves.push_back({ m, score });
+        orderedMoves.push_back({ m, heuristic });
     }
 
     std::sort(orderedMoves.begin(), orderedMoves.end(), [isMaximizing](const auto& a, const auto& b) {
@@ -97,6 +109,7 @@ int Minimax::minimax(Board& board, int depth, int currentPlayer, bool isMaximizi
     transpositionTable.insert(hash, { bestScore, depth, isMaximizing, flag, bestMove });
     return bestScore;
 }
+
 static inline bool timeExpired(const std::chrono::steady_clock::time_point& start, double limitSeconds) {
     using namespace std::chrono;
     auto now = steady_clock::now();
