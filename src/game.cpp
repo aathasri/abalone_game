@@ -11,7 +11,8 @@ Game::Game(const GameSettings& settings)
       turnCount(0),
       moveCountP1(0),
       moveCountP2(0),
-      ai(5, settings.getMoveTimeLimit(2), 1)  // Construct AI with maxDepth=5, time limit from settings, and a 1-second buffer.
+      ai(4, settings.getMoveTimeLimit(2), 1),  // Construct AI with maxDepth=4, time limit from settings, and a 1-second buffer.
+      overTimeLimitCount(0)  // Initialize overtime counter.
 {
     currentPlayer = settings.getPlayerColourMap().at(PlayerColour::BLACK);
 }
@@ -146,6 +147,11 @@ void Game::play() {
             auto endTime = std::chrono::steady_clock::now();
             auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
             std::cout << "AI took " << duration.count() << " ms to pick a move.\n";
+            // Check if we are over the designated time limit.
+            if (duration.count() > settings.getMoveTimeLimit(2) * 1000) {
+                std::cout << "OVER TIME LIMIT\n";
+                overTimeLimitCount++;
+            }
             std::cout << "AI chose: ";
             chosenMove.printString();
         }
@@ -191,7 +197,10 @@ void Game::announceWinner() const {
     } else {
         std::cout << "Game ended without a winner (e.g., no valid moves).\n";
     }
+    // Print the overtime count.
+    std::cout << "OVER TIME LIMIT occurred " << overTimeLimitCount << " times during the game.\n";
 }
+
 
 void Game::applyMoveWithUndo(const Move& move, MoveUndo& undo) {
     board.makeMove(move, undo);

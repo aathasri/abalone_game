@@ -35,6 +35,7 @@ private:
     Board generateGermanBoard();
     Board generateBelgianBoard();
     Board initializeBoard();
+    int overTimeLimitCount = 0;
 
     bool isGameOver() const;
     void announceWinner() const;

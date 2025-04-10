@@ -10,9 +10,9 @@
 // STATIC WEIGHTS - Updated; cohesion, prox, and isolation removed
 // --------------------------------------------------------------------------
 int HeuristicCalculator::W_PUSH_AI   = 40; 
-int HeuristicCalculator::W_PUSH_OPP  = 200;
-int HeuristicCalculator::W_VULN_AI   = 90;
-int HeuristicCalculator::W_VULN_OPP  = 65;
+int HeuristicCalculator::W_PUSH_OPP  = 30;
+int HeuristicCalculator::W_VULN_AI   = 50;
+int HeuristicCalculator::W_VULN_OPP  = 75;
 int HeuristicCalculator::W_MDIFF     = 850;
 
 // --------------------------------------------------------------------------
