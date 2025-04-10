@@ -23,9 +23,12 @@ public:
     void switchPlayer() { currentPlayer = (currentPlayer == 1) ? 2 : 1; } // Make public
     void incrementMoveCountP1() { moveCountP1++; }
     void incrementMoveCountP2() { moveCountP2++; }
+    void decrementMoveCountP1() { if (moveCountP1 > 0) moveCountP1--; }
+    void decrementMoveCountP2() { if (moveCountP2 > 0) moveCountP2--; }
     const GameSettings& getSettings() const { return settings; }
     int getMoveCountP1() const { return moveCountP1; }
     int getMoveCountP2() const { return moveCountP2; }
+    void applyMoveWithUndo(const Move& move, MoveUndo& undo);
 
 private:
     Board generateStandardBoard();

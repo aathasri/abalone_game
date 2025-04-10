@@ -13,13 +13,13 @@ Game::Game(const GameSettings& settings)
       moveCountP2(0),
       ai(5, settings.getMoveTimeLimit(2), 1)  // Construct AI with maxDepth=5, time limit from settings, and a 1-second buffer.
 {
-    // Set the current player based on the player colour map.
     currentPlayer = settings.getPlayerColourMap().at(PlayerColour::BLACK);
 }
 
 Board Game::generateStandardBoard()
 {
     std::map<PlayerColour, int> colourMap = settings.getPlayerColourMap();
+
     int bP = colourMap.at(PlayerColour::BLACK);
     int wP = colourMap.at(PlayerColour::WHITE);
 
@@ -44,6 +44,7 @@ Board Game::generateStandardBoard()
 Board Game::generateGermanBoard()
 {
     std::map<PlayerColour, int> colourMap = settings.getPlayerColourMap();
+
     int bP = colourMap.at(PlayerColour::BLACK);
     int wP = colourMap.at(PlayerColour::WHITE);
 
@@ -55,7 +56,7 @@ Board Game::generateGermanBoard()
         { 0,  0,  0,  0,  0,  0,  0,  0,  0},
         { 0, bP, bP,  0,  0, wP, wP,  0, -1},
         {bP, bP, bP,  0, wP, wP, wP, -1, -1},
-        {bP, bP,  0,  0, wP, wP, -1, -1, -1},  // Adjusted to bP for consistency.
+        {bP, bP,  0,  0, wP, wP, -1, -1, -1},
         { 0,  0,  0,  0,  0, -1, -1, -1, -1}
     }};
 
@@ -66,6 +67,7 @@ Board Game::generateGermanBoard()
 Board Game::generateBelgianBoard()
 {
     std::map<PlayerColour, int> colourMap = settings.getPlayerColourMap();
+
     int bP = colourMap.at(PlayerColour::BLACK);
     int wP = colourMap.at(PlayerColour::WHITE);
 
@@ -87,26 +89,32 @@ Board Game::generateBelgianBoard()
 
 Board Game::initializeBoard()
 {
-    if (settings.getBoardLayout() == BoardLayout::STANDARD)
+    if (settings.getBoardLayout() == BoardLayout::STANDARD) {
         return generateStandardBoard();
-    else if (settings.getBoardLayout() == BoardLayout::GERMAN_DAISY)
+    } else if (settings.getBoardLayout() == BoardLayout::GERMAN_DAISY) {
         return generateGermanBoard();
-    else
+    } else {
         return generateBelgianBoard();
+    }
 }
 
 void Game::play() {
     std::cout << "Starting Game:\n\n";
     board.printBoard();
+
     std::cout << "Board Made :\n\n";
 
     static std::mt19937 rng(std::random_device{}());
 
+    bool gameRunning = true;
+
     while (!isGameOver()) {
+        // Print current piece counts.
         std::cout << "\nCurrent Board Counts:\n";
         std::cout << "Player 1 Pieces: " << board.getNumPlayerOnePieces() << "\n";
         std::cout << "Player 2 Pieces: " << board.getNumPlayerTwoPieces() << "\n";
 
+        // Fix 3: Increment turnCount only here, display upcoming turn.
         std::cout << "\nTurn " << turnCount + 1 << ": Player "
                   << currentPlayer << " ("
                   << ((settings.getPlayerColourMap().at(PlayerColour::BLACK) == currentPlayer) ? "Black" : "White")
@@ -150,7 +158,7 @@ void Game::play() {
         else
             moveCountP2++;
 
-        turnCount++;
+        turnCount++; // Increment turn count after each move.
         switchPlayer();
     }
 
@@ -158,9 +166,9 @@ void Game::play() {
 }
 
 bool Game::isGameOver() const {
-    const int WIN_THRESHOLD = 8;
-    return board.getNumPlayerOnePieces() <= WIN_THRESHOLD ||
-           board.getNumPlayerTwoPieces() <= WIN_THRESHOLD;
+    const int WIN_THRESHOLD = 8; // Game over condition (8 pieces remaining)
+    return board.getNumPlayerOnePieces() <= WIN_THRESHOLD
+           || board.getNumPlayerTwoPieces() <= WIN_THRESHOLD;
 }
 
 void Game::announceWinner() const {
@@ -169,10 +177,10 @@ void Game::announceWinner() const {
     const int WIN_THRESHOLD = 8;
 
     std::cout << "\nGame Over!\n";
-    std::cout << "Player 1 (" 
+    std::cout << "Player 1 ("
               << ((settings.getPlayerColourMap().at(PlayerColour::WHITE) == 1) ? "White" : "Black")
               << "): " << p1 << " marbles left\n";
-    std::cout << "Player 2 (" 
+    std::cout << "Player 2 ("
               << ((settings.getPlayerColourMap().at(PlayerColour::BLACK) == 2) ? "Black" : "White")
               << "): " << p2 << " marbles left\n";
 
@@ -184,3 +192,8 @@ void Game::announceWinner() const {
         std::cout << "Game ended without a winner (e.g., no valid moves).\n";
     }
 }
+
+void Game::applyMoveWithUndo(const Move& move, MoveUndo& undo) {
+    board.makeMove(move, undo);
+}
+

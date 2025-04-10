@@ -1,0 +1,19 @@
+=== Abalone Game Log ===
+[MOVE] BLACK: H4,G4 > E | Time: 3.06s
+[MOVE] WHITE (AI): Processed | Time: 2.84s
+[MOVE] BLACK: F4,G3,H2 > NE | Time: 4.06s
+[MOVE] WHITE (AI): Processed | Time: 1.91s
+[MOVE] BLACK: G4,F4 > E | Time: 3.30s
+[MOVE] WHITE (AI): Processed | Time: 1.77s
+[MOVE] BLACK: I3 > NW | Time: 4.73s
+[MOVE] WHITE (AI): Processed | Time: 1.95s
+[MOVE] BLACK: I4 > NW | Time: 2.87s
+[MOVE] WHITE (AI): Processed | Time: 2.33s
+
+=== Summary ===
+Black Moves: 5
+White Moves: 5
+Black Time: 18.01s
+White Time: 10.79s
+Black Marbles Left: 0
+White Marbles Left: 0

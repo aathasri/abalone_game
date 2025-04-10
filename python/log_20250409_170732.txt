@@ -1,0 +1,62 @@
+=== Abalone Game Log ===
+[MOVE] BLACK: E3,F3,G3 > E | Time: 5.49s
+[MOVE] WHITE (AI): Processed | Time: 0.36s
+[MOVE] BLACK: D3,E2,F1 > NE | Time: 2.55s
+[MOVE] WHITE (AI): Processed | Time: 0.65s
+[MOVE] BLACK: D3,D2 > NW | Time: 3.72s
+[MOVE] WHITE (AI): Processed | Time: 1.07s
+[MOVE] BLACK: E3,E2,E1 > NW | Time: 5.16s
+[MOVE] WHITE (AI): Processed | Time: 1.67s
+[MOVE] BLACK: E4,D4,C4 > W | Time: 3.35s
+[MOVE] WHITE (AI): Processed | Time: 1.01s
+[MOVE] BLACK: F4,F3,F2 > NW | Time: 4.75s
+[MOVE] WHITE (AI): Processed | Time: 0.88s
+[MOVE] BLACK: I2,H2,G2 > E | Time: 5.95s
+[MOVE] WHITE (AI): Processed | Time: 0.76s
+[MOVE] BLACK: F3,F2 > SE | Time: 8.93s
+[MOVE] WHITE (AI): Processed | Time: 0.61s
+[MOVE] BLACK: E2 > SE | Time: 2.29s
+[MOVE] WHITE (AI): Processed | Time: 0.55s
+[MOVE] BLACK: H2 > W | Time: 2.74s
+[MOVE] WHITE (AI): Processed | Time: 0.55s
+[MOVE] BLACK: G3 > W | Time: 2.37s
+[MOVE] WHITE (AI): Processed | Time: 0.78s
+[MOVE] BLACK: H3 > W | Time: 1.82s
+[MOVE] WHITE (AI): Processed | Time: 0.55s
+[MOVE] BLACK: G2 > W | Time: 3.26s
+[MOVE] WHITE (AI): Processed | Time: 0.47s
+[MOVE] BLACK: F5 > W | Time: 1.71s
+[MOVE] WHITE (AI): Processed | Time: 0.58s
+[MOVE] BLACK: G5 > W | Time: 4.55s
+[MOVE] WHITE (AI): Processed | Time: 0.72s
+[MOVE] BLACK: H5 > W | Time: 1.96s
+[MOVE] WHITE (AI): Processed | Time: 0.92s
+[MOVE] BLACK: E4 > NE | Time: 3.21s
+[MOVE] WHITE (AI): Processed | Time: 0.93s
+[MOVE] BLACK: D5 > E | Time: 1.76s
+[MOVE] WHITE (AI): Processed | Time: 0.79s
+[MOVE] BLACK: C5 > SE | Time: 2.11s
+[MOVE] WHITE (AI): Processed | Time: 0.80s
+[MOVE] BLACK: C4 > SW | Time: 1.87s
+[MOVE] WHITE (AI): Processed | Time: 0.95s
+[MOVE] BLACK: F2 > SE | Time: 7.70s
+[MOVE] WHITE (AI): Processed | Time: 0.60s
+[MOVE] BLACK: E3,D3 > W | Time: 4.57s
+[MOVE] WHITE (AI): Processed | Time: 0.51s
+[MOVE] BLACK: E3,F3 > W | Time: 2.64s
+[MOVE] WHITE (AI): Processed | Time: 0.66s
+[MOVE] BLACK: F3 > SW | Time: 2.66s
+[MOVE] WHITE (AI): Processed | Time: 0.65s
+[INVALID] WHITE tried: G2,G3,G1 > SE
+[INVALID] WHITE tried: G2,G3,G1 > NW
+[INVALID] WHITE tried: G2,G3,G1 > NW
+[MOVE] BLACK: G1,G2,G3 > NW | Time: 16.42s
+[MOVE] WHITE (AI): Processed | Time: 0.46s
+
+=== Summary ===
+Black Moves: 25
+White Moves: 25
+Black Time: 103.53s
+White Time: 18.45s
+Black Marbles Left: 8
+White Marbles Left: 14
