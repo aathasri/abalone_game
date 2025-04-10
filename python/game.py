@@ -450,13 +450,14 @@ class AbaloneBoardView(QGraphicsView):
         # Settings Button (Gear)
         self.settings_btn = QPushButton(self)
         self.settings_btn.setGeometry(20, 20, 40, 40)
-        self.settings_btn.setIcon(QIcon("gear_icon.png"))  # Replace with your gear icon path
+        self.settings_btn.setIcon(QIcon("settings.svg"))
         self.settings_btn.setStyleSheet("background: #cccccc; border: 2px solid black; border-radius: 6px;")
         self.settings_btn.clicked.connect(self._return_to_settings)
 
         # Undo Button
-        self.undo_btn = QPushButton("Undo", self)
+        self.undo_btn = QPushButton(self)
         self.undo_btn.setGeometry(70, 20, 60, 40)
+        self.undo_btn.setIcon(QIcon("undo.svg"))
         self.undo_btn.setStyleSheet(
             "background: #ff9999; font-weight: bold; border: 2px solid black; border-radius: 6px;")
         self.undo_btn.clicked.connect(self._undo_move)
