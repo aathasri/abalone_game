@@ -1,172 +1,158 @@
-// move.cpp
 #include "move.h"
-#include <iostream>
-#include <unordered_map>
 #include <algorithm>
-#include <set>
 
-const std::unordered_map<std::string, std::pair<int, int>> directionDeltas = {
-    {"NE", {-1,  1}}, {"NW", {-1, 0}},
-    {"E",  { 0,  1}}, {"W",  { 0, -1}},
-    {"SE", { 1,  0}}, {"SW", { 1, -1}}
+/** 
+ * --------------------------------------------------------------------------------
+ * Move Direction
+ * --------------------------------------------------------------------------------
+ */ 
+
+std::ostream& operator<<(std::ostream& os, MoveDirection dir) {
+    switch (dir) {
+        case MoveDirection::W:  return os << "West";
+        case MoveDirection::NW: return os << "North West";
+        case MoveDirection::NE: return os << "North East";
+        case MoveDirection::E:  return os << "East";
+        case MoveDirection::SE: return os << "South East";
+        case MoveDirection::SW: return os << "South West";
+        default:                 return os << "Unknown";
+    }
+}
+
+/** 
+ * --------------------------------------------------------------------------------
+ * Direction Helper
+ * --------------------------------------------------------------------------------
+ */ 
+
+const std::array<std::pair<int, int>, static_cast<int>(MoveDirection::COUNT)> DirectionHelper::directionArray = {
+    std::make_pair(0, -1),  // W
+    std::make_pair(-1, 0),  // NW
+    std::make_pair(-1, 1),  // NE
+    std::make_pair(0, 1),   // E
+    std::make_pair(1, 0),   // SE
+    std::make_pair(1, -1)   // SW
 };
 
-bool isLine(const std::vector<int>& group) {
-    if (group.size() < 2) return false;
-    for (int i = 1; i < group.size(); ++i) {
-        if (std::find(neighborIndices[group[i]].begin(), neighborIndices[group[i]].end(), group[i - 1]) == neighborIndices[group[i]].end())
-            return false;
-    }
-    return true;
+const std::pair<int, int>& DirectionHelper::getDelta(MoveDirection dir) {
+    return directionArray[static_cast<int>(dir)];
 }
 
-// Helper to get inline direction from two marble indices
-std::string getDirection(int from, int to) {
-    for (const auto& [dir, delta] : directionDeltas) {
-        if (std::find(neighborIndices[from].begin(), neighborIndices[from].end(), to) != neighborIndices[from].end()) {
-            return dir;
-        }
-    }
-    return "";
+const std::pair<int, int>& DirectionHelper::getDelta(int dir) {
+    return directionArray[dir];
 }
 
-std::vector<Move> generateLegalMoves(const BoardArray& board, CellState player) {
-    std::vector<Move> moves;
-    std::set<std::string> seen;
-    CellState opponent = (player == BLACK) ? WHITE : BLACK;
-
-    for (int i = 0; i < 61; ++i) {
-        if (board[i] != player) continue;
-
-        // Single marble sidesteps
-        for (int n : neighborIndices[i]) {
-            if (board[n] == EMPTY) {
-                std::string dir = getDirection(i, n);
-                moves.push_back({ {i}, dir, SIDESTEP });
-            }
-        }
-
-        for (int j : neighborIndices[i]) {
-            if (board[j] != player) continue;
-            std::vector<int> group2 = {i, j};
-            std::sort(group2.begin(), group2.end());
-            if (!isLine(group2)) continue;
-            std::string dir = getDirection(i, j);
-
-            int front = j;
-            int next = -1;
-            for (int n : neighborIndices[front]) {
-                if (getDirection(front, n) == dir) {
-                    next = n;
-                    break;
-                }
-            }
-            if (next == -1) continue;
-
-            if (board[next] == EMPTY || board[next] == opponent) {
-                if (board[next] == EMPTY) {
-                    moves.push_back({ group2, dir, INLINE });
-                } else {
-                    // Sumito: 2v1
-                    int pushDest = -1;
-                    for (int n2 : neighborIndices[next]) {
-                        if (getDirection(next, n2) == dir) {
-                            pushDest = n2;
-                            break;
-                        }
-                    }
-                    if (pushDest == -1 || board[pushDest] == EMPTY) {
-                        moves.push_back({ group2, dir, INLINE });
-                    }
-                }
-            }
-
-            for (int k : neighborIndices[j]) {
-                if (board[k] != player || k == i) continue;
-                std::vector<int> group3 = {i, j, k};
-                std::sort(group3.begin(), group3.end());
-                if (!isLine(group3)) continue;
-                std::string dir3 = getDirection(j, k);
-                if (dir3 != dir) continue;
-
-                int front3 = k;
-                int next3 = -1;
-                for (int n : neighborIndices[front3]) {
-                    if (getDirection(front3, n) == dir3) {
-                        next3 = n;
-                        break;
-                    }
-                }
-                if (next3 == -1) continue;
-
-                if (board[next3] == EMPTY || board[next3] == opponent) {
-                    if (board[next3] == EMPTY) {
-                        moves.push_back({ group3, dir3, INLINE });
-                    } else {
-                        int oppCount = 1;
-                        int push1 = next3;
-                        int push2 = -1;
-
-                        for (int n2 : neighborIndices[push1]) {
-                            if (getDirection(push1, n2) == dir3) {
-                                push2 = n2;
-                                break;
-                            }
-                        }
-
-                        if (push2 != -1 && board[push2] == opponent) {
-                            oppCount = 2;
-                        }
-
-                        if ((int)group3.size() > oppCount) {
-                            int beyond = -1;
-                            for (int n : neighborIndices[push2 != -1 ? push2 : push1]) {
-                                if (getDirection(push2 != -1 ? push2 : push1, n) == dir3) {
-                                    beyond = n;
-                                    break;
-                                }
-                            }
-
-                            if (beyond == -1 || board[beyond] == EMPTY) {
-                                moves.push_back({ group3, dir3, INLINE });
-                            }
-                        }
-                    }
-                }
-            }
-        }
+std::vector<std::pair<MoveDirection, MoveDirection>> DirectionHelper::getPerpendiculars(MoveDirection dir) {
+    switch (dir) {
+        case MoveDirection::E:
+        case MoveDirection::W:
+            return {{MoveDirection::NW, MoveDirection::SE}, 
+                    {MoveDirection::NE, MoveDirection::SW}};
+        case MoveDirection::NW:
+        case MoveDirection::SE:
+            return {{MoveDirection::W, MoveDirection::E}, 
+                    {MoveDirection::NE, MoveDirection::SW}};
+        case MoveDirection::NE:
+        case MoveDirection::SW:
+            return {{MoveDirection::W, MoveDirection::E}, 
+                    {MoveDirection::NW, MoveDirection::SE}};
+        default:
+            return {};
     }
-
-    return moves;
 }
 
-BoardArray applyMove(const BoardArray& board, const Move& move) {
-    BoardArray newBoard = board;
-    if (move.type == SIDESTEP && move.marbles.size() == 1) {
-        int from = move.marbles[0];
-        int to = -1;
-        for (int neighbor : neighborIndices[from]) {
-            if (board[neighbor] == EMPTY) {
-                to = neighbor;
-                break;
-            }
-        }
-        if (to != -1) {
-            newBoard[to] = newBoard[from];
-            newBoard[from] = EMPTY;
-        }
-    }
+/** 
+ * --------------------------------------------------------------------------------
+ * Move Type
+ * --------------------------------------------------------------------------------
+ */ 
 
-    // TODO: Expand apply logic for inline and Sumito moves
-    return newBoard;
+std::ostream& operator<<(std::ostream& os, MoveType type) {
+    switch (type) {
+        case MoveType::SIDESTEP: return os << "s";
+        case MoveType::INLINE:   return os << "i";
+        default:                 return os << "Unknown";
+    }
 }
 
-std::string moveToString(const Move& move) {
-    std::string s = "{";
-    for (size_t i = 0; i < move.marbles.size(); ++i) {
-        s += idxToPos[move.marbles[i]];
-        if (i != move.marbles.size() - 1) s += ", ";
+/** 
+ * --------------------------------------------------------------------------------
+ * Move Class
+ * --------------------------------------------------------------------------------
+ */ 
+
+Move::Move() {}
+
+Move::Move(MoveType typ, MoveDirection dir)
+    : type(typ), direction(dir), size(0), positions{} {}
+
+void Move::addPosition(int row, int col) {
+    if (size >= 3) return;  // We never have more than 3 marbles in a line
+
+    std::pair<int, int> newPos = {row, col}; // (letter, number)
+    int insertAt = size;  // We'll do insertion-sort logic
+
+    if (type == MoveType::INLINE) {
+        auto [dx, dy] = DirectionHelper::getDelta(direction);
+        auto projection = [dx, dy](std::pair<int, int> pos) {
+            return pos.first * dx + pos.second * dy;
+        };
+        while (insertAt > 0 &&
+               projection(positions[insertAt - 1]) < projection(newPos)) 
+        {
+            positions[insertAt] = positions[insertAt - 1];
+            --insertAt;
+        }
     }
-    s += " -> " + move.direction + (move.type == INLINE ? ", inline" : ", sidestep") + "}";
-    return s;
+    else if (type == MoveType::SIDESTEP) {
+        while (insertAt > 0 && positions[insertAt - 1] > newPos) {
+            positions[insertAt] = positions[insertAt - 1];
+            --insertAt;
+        }
+    }
+
+    positions[insertAt] = newPos;
+    ++size;
+}
+
+void Move::copyMovePositions(const Move& m) {
+    positions = m.positions;
+    size = m.size;
+}
+
+bool Move::operator<(const Move& other) const {
+    if (type != other.type)
+        return type < other.type;
+
+    if (size != other.size)
+        return size < other.size;
+
+    if (direction != other.direction)
+        return direction < other.direction;
+
+    for (int i = 0; i < size; ++i) {
+        if (positions[i] != other.positions[i])
+            return positions[i] < other.positions[i];
+    }
+
+    return false;
+}
+
+void Move::printString() const {
+    std::cout << type << " - ";
+    for (int i = 0; i < size; ++i) {
+        std::cout << "(" << positions[i].first << "," << positions[i].second << ")";
+        if (i < size - 1) std::cout << ", ";
+    }
+    std::cout << " - " << direction << std::endl;
+}
+
+std::ostream& operator<<(std::ostream& os, const Move& move) {
+    os << move.type << " - ";
+    for (int i = 0; i < move.size; ++i) {
+        os << "(" << move.positions[i].first << "," << move.positions[i].second << ")";
+        if (i < move.size - 1) os << ", ";
+    }
+    os << " - " << move.direction;
+    return os;
 }

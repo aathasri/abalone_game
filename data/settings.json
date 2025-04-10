@@ -1,9 +1,0 @@
-{
-  "player_color": "black",
-  "starting_position": "standard",
-  "agent_time_limit": 5.0,
-  "opponent_time_limit": 5.0,
-  "max_moves": 20,
-  "agent_max_aggregate_time": 30.0,
-  "opponent_max_aggregate_time": 300.0
-}

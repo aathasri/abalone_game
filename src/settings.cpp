@@ -1,32 +1,36 @@
 #include "settings.h"
-#include <fstream>
-#include <iostream>
-#include <nlohmann/json.hpp>
 
-using json = nlohmann::json;
+GameSettings::GameSettings() {}
 
-Settings loadSettings(const std::string& filename) {
-    Settings settings;
-    std::ifstream file(filename);
+void GameSettings::setBoardLayout(BoardLayout newLayout) {
+    layout = newLayout;
+}
 
-    if (!file.is_open()) {
-        std::cerr << "[Error] Could not open settings file: " << filename << std::endl;
-        return settings;
-    }
+void GameSettings::setPlayer1Color(PlayerColour color) {
+    player1Color = color;
+    player2Color = (color == PlayerColour::BLACK) ? PlayerColour::WHITE : PlayerColour::BLACK;
 
-    json j;
-    try {
-        file >> j;
-        settings.playerColor = (j["player_color"] == "black") ? CellState::BLACK : CellState::WHITE;
-        settings.startingPosition = j.value("starting_position", "standard");
-        settings.agentTimeLimit = j.value("agent_time_limit", 5.0);
-        settings.opponentTimeLimit = j.value("opponent_time_limit", 5.0);
-        settings.maxMoves = j.value("max_moves", 200);
-        settings.agentMaxAggregateTime = j.value("agent_max_aggregate_time", 300.0);
-        settings.opponentMaxAggregateTime = j.value("opponent_max_aggregate_time", 300.0);
-    } catch (const std::exception& e) {
-        std::cerr << "[Error] Failed to parse settings: " << e.what() << std::endl;
-    }
+    playerColourMap.clear();
+    playerColourMap[player1Color] = 1;
+    playerColourMap[player2Color] = 2;
+}
 
-    return settings;
+void GameSettings::setGameMode(GameMode mode) {
+    gameMode = mode;
+}
+
+void GameSettings::setMoveLimit(int limit) {
+    moveLimit = limit;
+}
+
+void GameSettings::setTimeLimits(bool sameLimit, int limitP1, int limitP2) {
+    sameTimeLimit = sameLimit;
+    moveTimeLimitPlayer1 = limitP1;
+    moveTimeLimitPlayer2 = sameLimit ? limitP1 : limitP2;
+}
+
+int GameSettings::getMoveTimeLimit(int playerNum) const {
+    if (playerNum == 1) return moveTimeLimitPlayer1;
+    if (playerNum == 2) return moveTimeLimitPlayer2;
+    throw std::out_of_range("Invalid player number for time limit.");
 }
