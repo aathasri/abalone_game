@@ -12,77 +12,117 @@ namespace py = pybind11;
 
 class AbaloneGameWrapper {
 public:
-    AbaloneGameWrapper() {
+    AbaloneGameWrapper(int player1_color, int board_layout, int max_moves, int time_p1, int time_p2, int game_mode) {
         GameSettings settings;
-        settings.setBoardLayout(BoardLayout::STANDARD);
-        settings.setPlayer1Color(PlayerColour::BLACK); // Player 1 = Black, Player 2 = White (AI)
-        settings.setGameMode(GameMode::PLAYER_VS_COMPUTER);
+        settings.setBoardLayout(static_cast<BoardLayout>(board_layout));
+        settings.setPlayer1Color(static_cast<PlayerColour>(player1_color));
+        settings.setGameMode(static_cast<GameMode>(game_mode));
+        settings.setMoveLimit(max_moves);
+        settings.setTimeLimits(true, time_p1, time_p2);
         game = std::make_unique<Game>(settings);
+        this->max_moves = max_moves;
+        this->time_p1 = time_p1;
+        this->time_p2 = time_p2;
     }
 
     std::tuple<std::string, std::vector<std::pair<int, int>>, std::vector<std::pair<int, int>>, double>
     make_player_and_ai_move(const std::vector<std::pair<int, int>>& coords, const std::string& direction_str) {
-        // Convert Python coords (col, row) to C++ (row, col) and adjust to 0-based indexing
+        if (game->getMoveCountP1() + game->getMoveCountP2() >= max_moves) {
+            auto [black_pos, white_pos] = get_board_positions();
+            return {"MAX_MOVES", black_pos, white_pos, 0.0};
+        }
+
         std::vector<std::pair<int, int>> adjusted_coords;
         for (const auto& [col, row] : coords) {
-            int row_cpp = 9 - row; // Convert row from 1-9 (bottom-up) to 0-8 (top-down)
-            int col_cpp = col - 1; // Convert col from 1-9 to 0-8
+            int row_cpp = 9 - row; // Convert to 0-based, top-down
+            int col_cpp = col - 1; // Convert to 0-based
             adjusted_coords.emplace_back(row_cpp, col_cpp);
         }
 
-        // Get direction and infer move type
         MoveDirection move_dir = string_to_direction(direction_str);
         MoveType move_type = infer_move_type(adjusted_coords, move_dir);
 
-        // Create Move object
         Move player_move(move_type, move_dir);
         for (const auto& [row, col] : adjusted_coords) {
             player_move.addPosition(row, col);
         }
 
-        // Validate and apply player move
         MoveGenerator move_gen;
         move_gen.generateMoves(game->getCurrentPlayer(), game->getBoard());
         const auto& valid_moves = move_gen.getGeneratedMoves();
 
         if (valid_moves.find(player_move) == valid_moves.end()) {
-            return {"INVALID", {}, {}, 0.0};
+            auto [black_pos, white_pos] = get_board_positions();
+            return {"INVALID", black_pos, white_pos, 0.0};
         }
 
-        game->applyMove(player_move);
-        if (game->getCurrentPlayer() == 1) game->incrementMoveCountP1();
+        // Store player move undo data
+        last_player_undo = MoveUndo();
+        game->applyMoveWithUndo(player_move, last_player_undo);
+        game->incrementMoveCountP1();
         game->switchPlayer();
 
-        // AI move
         auto start_time = std::chrono::high_resolution_clock::now();
         Move ai_move = game->getAI().findBestMove(game->getBoard(), game->getCurrentPlayer());
-        game->applyMove(ai_move);
+        last_ai_undo = MoveUndo();
+        game->applyMoveWithUndo(ai_move, last_ai_undo);
         auto end_time = std::chrono::high_resolution_clock::now();
         double ai_time = std::chrono::duration<double>(end_time - start_time).count();
-        if (game->getCurrentPlayer() == 2) game->incrementMoveCountP2();
+        game->incrementMoveCountP2();
         game->switchPlayer();
 
-        // Get updated board positions
         auto [black_pos, white_pos] = get_board_positions();
-
         return {"VALID", black_pos, white_pos, ai_time};
+    }
+
+    void undo_last_move() {
+        if (last_ai_undo.changes.empty() && last_player_undo.changes.empty()) {
+            return; // Nothing to undo
+        }
+
+        // Undo AI move first (if it exists)
+        if (!last_ai_undo.changes.empty()) {
+            game->getBoard().unmakeMove(last_ai_undo);
+            game->decrementMoveCountP2();
+            game->switchPlayer();
+        }
+
+        // Undo player move (if it exists)
+        if (!last_player_undo.changes.empty()) {
+            game->getBoard().unmakeMove(last_player_undo);
+            game->decrementMoveCountP1();
+            game->switchPlayer();
+        }
+
+        // Clear undo data
+        last_player_undo = MoveUndo();
+        last_ai_undo = MoveUndo();
+    }
+
+    std::pair<std::vector<std::pair<int, int>>, std::vector<std::pair<int, int>>>
+    get_initial_state() {
+        return get_board_positions();
+    }
+    std::pair<std::vector<std::pair<int, int>>, std::vector<std::pair<int, int>>>
+    get_current_state() {
+        return get_board_positions();
     }
 
 private:
     std::unique_ptr<Game> game;
+    int max_moves;
+    int time_p1;
+    int time_p2;
+    MoveUndo last_player_undo; // Added to store player move undo data
+    MoveUndo last_ai_undo;     // Added to store AI move undo data
 
     MoveType infer_move_type(const std::vector<std::pair<int, int>>& coords, MoveDirection dir) {
         if (coords.size() == 1) return MoveType::INLINE;
-
-        // Get direction delta
         auto [dx_dir, dy_dir] = DirectionHelper::getDelta(dir);
-
-        // Check if marbles are in a line
         bool is_inline = true;
         if (coords.size() == 2) {
             int dx = coords[1].first - coords[0].first;
             int dy = coords[1].second - coords[0].second;
-            // Inline if direction aligns with marble line
             is_inline = (dx == dx_dir && dy == dy_dir) || (dx == -dx_dir && dy == -dy_dir);
         } else if (coords.size() == 3) {
             int dx1 = coords[1].first - coords[0].first;
@@ -92,10 +132,9 @@ private:
             if (dx1 == dx2 && dy1 == dy2) {
                 is_inline = (dx1 == dx_dir && dy1 == dy_dir) || (dx1 == -dx_dir && dy1 == -dy_dir);
             } else {
-                is_inline = false; // Not in a straight line, must be sidestep
+                is_inline = false;
             }
         }
-
         return is_inline ? MoveType::INLINE : MoveType::SIDESTEP;
     }
 
@@ -116,7 +155,7 @@ private:
         for (int i = 0; i < ROWS; ++i) {
             for (int j = 0; j < COLS; ++j) {
                 if (board[i][j] == 1 && game->getSettings().getPlayerColourMap().at(PlayerColour::BLACK) == 1) {
-                    black_pos.emplace_back(j + 1, 9 - i); // Convert back to Python (col, row)
+                    black_pos.emplace_back(j + 1, 9 - i); // (col, row) for Python
                 } else if (board[i][j] == 2 && game->getSettings().getPlayerColourMap().at(PlayerColour::WHITE) == 2) {
                     white_pos.emplace_back(j + 1, 9 - i);
                 }
@@ -128,6 +167,9 @@ private:
 
 PYBIND11_MODULE(abalone_cpp, m) {
     py::class_<AbaloneGameWrapper>(m, "AbaloneGame")
-        .def(py::init<>())
-        .def("make_player_and_ai_move", &AbaloneGameWrapper::make_player_and_ai_move);
+        .def(py::init<int, int, int, int, int, int>())
+        .def("make_player_and_ai_move", &AbaloneGameWrapper::make_player_and_ai_move)
+        .def("undo_last_move", &AbaloneGameWrapper::undo_last_move) // Expose undo method
+        .def("get_initial_state", &AbaloneGameWrapper::get_initial_state)
+        .def("get_current_state", &AbaloneGameWrapper::get_current_state);
 }

@@ -1,0 +1,46 @@
+=== Abalone Game Log ===
+[MOVE] BLACK: G2,G3 > NW | Time: 4.42s
+[MOVE] WHITE (AI): Processed | Time: 1.08s
+[MOVE] BLACK: G3,H3 > W | Time: 3.50s
+[MOVE] WHITE (AI): Processed | Time: 1.08s
+[MOVE] BLACK: G4 > W | Time: 1.86s
+[MOVE] WHITE (AI): Processed | Time: 1.50s
+[MOVE] BLACK: H4 > W | Time: 2.28s
+[MOVE] WHITE (AI): Processed | Time: 1.22s
+[MOVE] BLACK: H3 > NW | Time: 3.11s
+[MOVE] WHITE (AI): Processed | Time: 1.21s
+[MOVE] BLACK: H4 > NW | Time: 1.71s
+[MOVE] WHITE (AI): Processed | Time: 1.28s
+[MOVE] BLACK: H5 > W | Time: 1.31s
+[MOVE] WHITE (AI): Processed | Time: 1.44s
+[INVALID] WHITE tried: C7,B7 > NE
+[MOVE] BLACK: C7,B7 > E | Time: 4.81s
+[MOVE] WHITE (AI): Processed | Time: 1.52s
+[MOVE] BLACK: C8 > SE | Time: 2.20s
+[MOVE] WHITE (AI): Processed | Time: 2.27s
+[MOVE] BLACK: C7 > SE | Time: 1.80s
+[MOVE] WHITE (AI): Processed | Time: 1.53s
+[MOVE] BLACK: C6 > E | Time: 1.59s
+[MOVE] WHITE (AI): Processed | Time: 1.23s
+[MOVE] BLACK: B6 > E | Time: 2.98s
+[MOVE] WHITE (AI): Processed | Time: 0.96s
+[MOVE] BLACK: A6 > SE | Time: 6.30s
+[MOVE] WHITE (AI): Processed | Time: 0.86s
+[MOVE] BLACK: A5 > W | Time: 4.60s
+[MOVE] WHITE (AI): Processed | Time: 0.84s
+[MOVE] BLACK: B5 > NW | Time: 3.63s
+[MOVE] WHITE (AI): Processed | Time: 0.65s
+[MOVE] BLACK: B6 > E | Time: 2.29s
+[MOVE] WHITE (AI): Processed | Time: 0.76s
+[MOVE] BLACK: A6 > SW | Time: 3.23s
+[MOVE] WHITE (AI): Processed | Time: 1.03s
+[MOVE] BLACK: B5 > E | Time: 1.47s
+[MOVE] WHITE (AI): Processed | Time: 0.55s
+
+=== Summary ===
+Black Moves: 18
+White Moves: 18
+Black Time: 53.09s
+White Time: 21.01s
+Black Marbles Left: 8
+White Marbles Left: 14
