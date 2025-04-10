@@ -7,19 +7,19 @@
 
 Game::Game(const GameSettings& settings)
     : settings(settings),
-      board(initializeBoard()), // Fix 5: Use initializeBoard instead of generateStandardBoard directly
+      board(initializeBoard()), // Use initializeBoard to create starting board.
       turnCount(0),
       moveCountP1(0),
       moveCountP2(0),
-      ai(5, settings.getMoveTimeLimit(2), 1)  // maxDepth=5, for example
+      ai(4, settings.getMoveTimeLimit(2), 1)  // Construct AI with maxDepth=5, time limit from settings, and a 1-second buffer.
 {
+    // Set the current player based on the player colour map.
     currentPlayer = settings.getPlayerColourMap().at(PlayerColour::BLACK);
 }
 
 Board Game::generateStandardBoard()
 {
     std::map<PlayerColour, int> colourMap = settings.getPlayerColourMap();
-
     int bP = colourMap.at(PlayerColour::BLACK);
     int wP = colourMap.at(PlayerColour::WHITE);
 
@@ -44,7 +44,6 @@ Board Game::generateStandardBoard()
 Board Game::generateGermanBoard()
 {
     std::map<PlayerColour, int> colourMap = settings.getPlayerColourMap();
-
     int bP = colourMap.at(PlayerColour::BLACK);
     int wP = colourMap.at(PlayerColour::WHITE);
 
@@ -56,7 +55,7 @@ Board Game::generateGermanBoard()
         { 0,  0,  0,  0,  0,  0,  0,  0,  0},
         { 0, bP, bP,  0,  0, wP, wP,  0, -1},
         {bP, bP, bP,  0, wP, wP, wP, -1, -1},
-        {bP, bP,  0,  0, wP, wP, -1, -1, -1},
+        {bP, bP,  0,  0, wP, wP, -1, -1, -1},  // Adjusted to bP for consistency.
         { 0,  0,  0,  0,  0, -1, -1, -1, -1}
     }};
 
@@ -67,7 +66,6 @@ Board Game::generateGermanBoard()
 Board Game::generateBelgianBoard()
 {
     std::map<PlayerColour, int> colourMap = settings.getPlayerColourMap();
-
     int bP = colourMap.at(PlayerColour::BLACK);
     int wP = colourMap.at(PlayerColour::WHITE);
 
@@ -89,46 +87,35 @@ Board Game::generateBelgianBoard()
 
 Board Game::initializeBoard()
 {
-    if (settings.getBoardLayout() == BoardLayout::STANDARD) {
+    if (settings.getBoardLayout() == BoardLayout::STANDARD)
         return generateStandardBoard();
-    } else if (settings.getBoardLayout() == BoardLayout::GERMAN_DAISY) {
+    else if (settings.getBoardLayout() == BoardLayout::GERMAN_DAISY)
         return generateGermanBoard();
-    } else {
+    else
         return generateBelgianBoard();
-    }
 }
 
 void Game::play() {
     std::cout << "Starting Game:\n\n";
     board.printBoard();
-
     std::cout << "Board Made :\n\n";
 
     static std::mt19937 rng(std::random_device{}());
 
-    bool gameRunning = true;
-
     while (!isGameOver()) {
-        // Print current piece counts.
         std::cout << "\nCurrent Board Counts:\n";
         std::cout << "Player 1 Pieces: " << board.getNumPlayerOnePieces() << "\n";
         std::cout << "Player 2 Pieces: " << board.getNumPlayerTwoPieces() << "\n";
 
-        // Fix 3: Increment turnCount only here, display upcoming turn.
         std::cout << "\nTurn " << turnCount + 1 << ": Player "
                   << currentPlayer << " ("
-                  << (settings.getPlayerColourMap().at(PlayerColour::BLACK) == currentPlayer
-                      ? "Black" : "White")
+                  << ((settings.getPlayerColourMap().at(PlayerColour::BLACK) == currentPlayer) ? "Black" : "White")
                   << ")\n";
 
         // Generate moves.
         MoveGenerator moveGen;
         moveGen.generateMoves(currentPlayer, board);
         const std::set<Move>& validMoves = moveGen.getGeneratedMoves();
-
-        // Print all available moves.
-        // std::cout << "\nAvailable Moves:\n";
-        // moveGen.printMoves();
 
         if (validMoves.empty()) {
             std::cout << "\nPlayer " << currentPlayer << " has no valid moves.\n";
@@ -149,8 +136,7 @@ void Game::play() {
             auto startTime = std::chrono::steady_clock::now();
             chosenMove = ai.findBestMove(board, currentPlayer);
             auto endTime = std::chrono::steady_clock::now();
-            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
-                                endTime - startTime);
+            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
             std::cout << "AI took " << duration.count() << " ms to pick a move.\n";
             std::cout << "AI chose: ";
             chosenMove.printString();
@@ -159,10 +145,12 @@ void Game::play() {
         board.applyMove(chosenMove);
         board.printBoard();
 
-        if (currentPlayer == 1) moveCountP1++;
-        else moveCountP2++;
+        if (currentPlayer == 1)
+            moveCountP1++;
+        else
+            moveCountP2++;
 
-        turnCount++; // Increment turn count after each move.
+        turnCount++;
         switchPlayer();
     }
 
@@ -170,9 +158,9 @@ void Game::play() {
 }
 
 bool Game::isGameOver() const {
-    const int WIN_THRESHOLD = 8; // Game over condition (8 pieces remaining)
-    return board.getNumPlayerOnePieces() <= WIN_THRESHOLD
-           || board.getNumPlayerTwoPieces() <= WIN_THRESHOLD;
+    const int WIN_THRESHOLD = 8;
+    return board.getNumPlayerOnePieces() <= WIN_THRESHOLD ||
+           board.getNumPlayerTwoPieces() <= WIN_THRESHOLD;
 }
 
 void Game::announceWinner() const {
@@ -181,13 +169,11 @@ void Game::announceWinner() const {
     const int WIN_THRESHOLD = 8;
 
     std::cout << "\nGame Over!\n";
-    std::cout << "Player 1 ("
-              << (settings.getPlayerColourMap().at(PlayerColour::WHITE) == 1 
-                  ? "White" : "Black")
+    std::cout << "Player 1 (" 
+              << ((settings.getPlayerColourMap().at(PlayerColour::WHITE) == 1) ? "White" : "Black")
               << "): " << p1 << " marbles left\n";
-    std::cout << "Player 2 ("
-              << (settings.getPlayerColourMap().at(PlayerColour::BLACK) == 2 
-                  ? "Black" : "White")
+    std::cout << "Player 2 (" 
+              << ((settings.getPlayerColourMap().at(PlayerColour::BLACK) == 2) ? "Black" : "White")
               << "): " << p2 << " marbles left\n";
 
     if (p1 <= WIN_THRESHOLD) {

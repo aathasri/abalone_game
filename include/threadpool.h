@@ -11,6 +11,7 @@
 #include <stdexcept>
 #include <type_traits>
 #include <utility>
+#include <atomic>
 
 class ThreadPool {
 public:
@@ -23,6 +24,9 @@ public:
     auto enqueue(F&& f, Args&&... args)
       -> std::future<typename std::invoke_result<F, Args...>::type>;
 
+    // Cancel all pending tasks.
+    void cancelTasks();
+
 private:
     // Worker threads.
     std::vector<std::thread> workers;
@@ -32,17 +36,21 @@ private:
     // Synchronization.
     std::mutex queue_mutex;
     std::condition_variable condition;
+    
+    // Flag to indicate that the thread pool is stopping.
     bool stop;
+    
+    // Cancellation flag to indicate that pending tasks should be canceled.
+    std::atomic<bool> canceled;
 };
 
-// Template implementation: defined in the header so it can be instantiated.
+// Template implementation defined in the header.
 template<class F, class... Args>
 auto ThreadPool::enqueue(F&& f, Args&&... args)
   -> std::future<typename std::invoke_result<F, Args...>::type>
 {
     using return_type = typename std::invoke_result<F, Args...>::type;
 
-    // Create a packaged task that wraps the function call.
     auto task = std::make_shared<std::packaged_task<return_type()>>(
         std::bind(std::forward<F>(f), std::forward<Args>(args)...)
     );

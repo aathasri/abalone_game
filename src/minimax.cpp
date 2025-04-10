@@ -32,13 +32,15 @@ static bool isCaptureMove(Board& board, const Move &move, int currentPlayer) {
 
 // --------------------------------------------------------------------------
 // Quiescence search (interruptible version).
-// It checks the stopSearch flag periodically, returning early if cancellation
-// is requested.
+// This version no longer imposes a strict maximum quiescence depth so that
+// quiescence search can extend evaluation beyond the iterative deepening limit.
 static int quiescenceSearch(Board& board, int currentPlayer, bool isMaximizing,
                             int alpha, int beta, std::atomic<size_t>& nodeCount,
-                            std::atomic<bool>& stopSearch) {
-    if (stopSearch.load())
+                            std::atomic<bool>& stopSearch, int qDepth = 0) {
+    // Note: we have removed the hard limit on quiescence search depth.
+    if(stopSearch.load())
         return isMaximizing ? alpha : beta;
+    
     ++nodeCount;
     HeuristicCalculator hcalc;
     int standPat = hcalc.calculateHeuristic(board);
@@ -55,9 +57,15 @@ static int quiescenceSearch(Board& board, int currentPlayer, bool isMaximizing,
     moveGen.generateMoves(currentPlayer, board);
     const std::set<Move>& allMoves = moveGen.getGeneratedMoves();
     std::set<Move> captureMoves;
+    int innerCounter = 0;
     for (const Move &move : allMoves) {
+        if(stopSearch.load())
+            break;
         if (isCaptureMove(board, move, currentPlayer))
             captureMoves.insert(move);
+        // Check frequently for cancellation.
+        if (++innerCounter % 2 == 0)
+            std::this_thread::yield();
     }
     if (captureMoves.empty())
         return standPat;
@@ -68,14 +76,14 @@ static int quiescenceSearch(Board& board, int currentPlayer, bool isMaximizing,
         MoveUndo undo;
         board.makeMove(move, undo);
         int score = quiescenceSearch(board, 3 - currentPlayer, !isMaximizing,
-                                     alpha, beta, nodeCount, stopSearch);
+                                     alpha, beta, nodeCount, stopSearch, qDepth + 1);
         board.unmakeMove(undo);
         if (isMaximizing) {
             if (score > alpha) alpha = score;
-            if (alpha >= beta) return beta; // beta cutoff
+            if (alpha >= beta) return beta;
         } else {
             if (score < beta) beta = score;
-            if (beta <= alpha) return alpha; // alpha cutoff
+            if (beta <= alpha) return alpha;
         }
     }
     return isMaximizing ? alpha : beta;
@@ -89,7 +97,7 @@ Minimax::Minimax(int maxDepth, int timeLimitSeconds, int bufferTimeSeconds)
       nodeCount(0),
       timeLimitSeconds(timeLimitSeconds),
       bufferTimeSeconds(bufferTimeSeconds),
-      stopSearch(false) // Initially false.
+      stopSearch(false)
 {
 }
 
@@ -122,6 +130,8 @@ int Minimax::minimax(Board& board, int depth, int currentPlayer,
     }
 
     if (depth == 0) {
+        // When the iterative deepening depth is reached, continue with quiescence search
+        // (which can extend evaluation beyond the iterative deepening depth limit).
         int score = quiescenceSearch(board, currentPlayer, isMaximizing,
                                      alpha, beta, nodeCount, stopSearch);
         transpositionTable.insert(hash, { score, depth, isMaximizing, BoundType::EXACT });
@@ -143,6 +153,7 @@ int Minimax::minimax(Board& board, int depth, int currentPlayer,
     };
     std::vector<MoveOrderChild> childOrder;
     childOrder.reserve(moves.size());
+    int counter = 0;
     for (const auto& m : moves) {
         if(stopSearch.load())
             return isMaximizing ? alpha : beta;
@@ -151,6 +162,11 @@ int Minimax::minimax(Board& board, int depth, int currentPlayer,
         int h = hcalc.calculateHeuristic(board);
         board.unmakeMove(undo);
         childOrder.push_back({ m, h });
+        if (++counter % 2 == 0) {
+            std::this_thread::yield();
+            if(stopSearch.load())
+                return isMaximizing ? alpha : beta;
+        }
     }
     std::sort(childOrder.begin(), childOrder.end(),
               [isMaximizing](const MoveOrderChild& a, const MoveOrderChild& b) {
@@ -160,7 +176,7 @@ int Minimax::minimax(Board& board, int depth, int currentPlayer,
 
     int originalAlpha = alpha;
     int bestScore = isMaximizing ? std::numeric_limits<int>::min() : std::numeric_limits<int>::max();
-
+    counter = 0;
     for (auto& child : childOrder) {
         if(stopSearch.load())
             break;
@@ -174,6 +190,11 @@ int Minimax::minimax(Board& board, int depth, int currentPlayer,
         } else {
             bestScore = std::min(bestScore, result);
             beta = std::min(beta, bestScore);
+        }
+        if (++counter % 2 == 0) {
+            std::this_thread::yield();
+            if(stopSearch.load())
+                break;
         }
         if (beta <= alpha)
             break;
@@ -189,7 +210,7 @@ int Minimax::minimax(Board& board, int depth, int currentPlayer,
 }
 
 // --------------------------------------------------------------------------
-// Helper to check if the allotted time has expired.
+// Helper function to check if the allotted time has expired.
 static inline bool timeExpired(const std::chrono::steady_clock::time_point& start,
                                double limitSeconds) {
     using namespace std::chrono;
@@ -199,9 +220,10 @@ static inline bool timeExpired(const std::chrono::steady_clock::time_point& star
 }
 
 // --------------------------------------------------------------------------
-// Iterative deepening search with a time limit (minus a buffer), cancellation, 
+// Iterative deepening search with a time limit (minus a buffer), cancellation,
 // and nonblocking waits on futures to cancel outstanding tasks.
-// This function returns the best move found from the last completed depth.
+// Iterative deepening stops when searchDepth exceeds maxDepth (as configured),
+// but quiescence search is allowed to extend evaluation beyond that depth.
 Move Minimax::findBestMove(Board& board, int currentPlayer) {
     HeuristicCalculator hcalc;
     Move bestMoveOverall;               // Best move from the last fully completed depth.
@@ -232,8 +254,8 @@ Move Minimax::findBestMove(Board& board, int currentPlayer) {
     auto startTime = std::chrono::steady_clock::now();
 
     int searchDepth = 1;
-    while (!timeExpired(startTime, effectiveTimeLimit)) {
-        // Clear the transposition table (optional) between depths.
+    while (!timeExpired(startTime, effectiveTimeLimit) && searchDepth <= maxDepth) {
+        // Optionally: you may opt not to clear the transposition table for faster reuse.
         transpositionTable.clear();
         std::cout << "Starting search at depth " << searchDepth << "...\n";
 
@@ -256,12 +278,13 @@ Move Minimax::findBestMove(Board& board, int currentPlayer) {
                       return a.heuristic > b.heuristic;
                   });
 
-        // Launch parallel tasks for root moves.
+        // Launch parallel tasks for the root moves.
         unsigned int numCores = std::thread::hardware_concurrency();
         if (numCores == 0)
             numCores = 2;
         size_t totalMoves = ordering.size();
         size_t groupSize = (totalMoves + numCores - 1) / numCores;
+        // Create a ThreadPool instance.
         ThreadPool pool(numCores);
         std::vector<std::future<std::pair<int, Move>>> futures;
 
@@ -270,11 +293,12 @@ Move Minimax::findBestMove(Board& board, int currentPlayer) {
             futures.push_back(pool.enqueue([this, &ordering, groupStart, groupEnd, &board, currentPlayer, searchDepth, startTime, effectiveTimeLimit]() -> std::pair<int, Move> {
                 int groupBestScore = std::numeric_limits<int>::min();
                 Move groupBestMove;
+                int localCounter = 0;
                 for (size_t i = groupStart; i < groupEnd; ++i) {
                     if (timeExpired(startTime, effectiveTimeLimit) || stopSearch.load())
                         break;
                     const Move& candidate = ordering[i].move;
-                    Board boardCopy = board;  // Requires an efficient copy constructor.
+                    Board boardCopy = board;  // Ensure Board is efficiently copyable.
                     MoveUndo undo;
                     boardCopy.makeMove(candidate, undo);
                     int score = minimax(boardCopy, searchDepth - 1, 1, false,
@@ -285,6 +309,8 @@ Move Minimax::findBestMove(Board& board, int currentPlayer) {
                         groupBestScore = score;
                         groupBestMove = candidate;
                     }
+                    if (++localCounter % 2 == 0)
+                        std::this_thread::yield();
                 }
                 return std::make_pair(groupBestScore, groupBestMove);
             }));
@@ -293,9 +319,9 @@ Move Minimax::findBestMove(Board& board, int currentPlayer) {
         int localBestScore = std::numeric_limits<int>::min();
         Move localBestMove;
         bool futuresTimedOut = false;
-        // Poll for each future with a timeout to avoid blocking indefinitely.
+        // Poll for each future with a short timeout.
         for (auto & fut : futures) {
-            while (fut.wait_for(std::chrono::milliseconds(10)) == std::future_status::timeout) {
+            while (fut.wait_for(std::chrono::milliseconds(2)) == std::future_status::timeout) {
                 if (timeExpired(startTime, effectiveTimeLimit)) {
                     futuresTimedOut = true;
                     break;
