@@ -63,87 +63,56 @@ Board::Board(const std::array<std::array<int, COLS>, ROWS>& matrix,
              const std::map<std::pair<int,int>, int>& cToIdx,
              const std::vector<std::pair<int,int>>& idxToCoord)
     : gameboard(matrix),
-      numPlayerOnePieces(14),  // Adjust as needed.
+      numPlayerOnePieces(14),
       numPlayerTwoPieces(14),
-      // Create shared pointers for invariant data.
       adjacencyList(std::make_shared<std::vector<std::vector<int>>>(adjList)),
       coordToIndex(std::make_shared<std::map<std::pair<int,int>, int>>(cToIdx)),
-      indexToCoord(std::make_shared<std::vector<std::pair<int,int>>>(idxToCoord))
-{
-    // Optionally recalc pieces from matrix if needed.
-}
+      indexToCoord(std::make_shared<std::vector<std::pair<int,int>>>(idxToCoord)) {}
 
-// --------------------------------------------------------------------------------
-// Custom Copy Constructor
-// --------------------------------------------------------------------------------
-// This copy constructor copies the mutable board state while sharing the invariant data.
 Board::Board(const Board& other)
     : gameboard(other.gameboard),
       numPlayerOnePieces(other.numPlayerOnePieces),
       numPlayerTwoPieces(other.numPlayerTwoPieces),
       adjacencyList(other.adjacencyList),
       coordToIndex(other.coordToIndex),
-      indexToCoord(other.indexToCoord)
-{
-    // No deep copying of invariant data.
-}
+      indexToCoord(other.indexToCoord) {}
 
-// --------------------------------------------------------------------------------
-// Getters
-// --------------------------------------------------------------------------------
 const std::array<std::array<int, COLS>, ROWS>& Board::getBoard() const {
     return gameboard;
 }
-
 const std::vector<std::vector<int>>& Board::getAdjacencyList() const {
     return *adjacencyList;
 }
-
 const std::map<std::pair<int, int>, int>& Board::getCoordToIndex() const {
     return *coordToIndex;
 }
-
 const std::vector<std::pair<int, int>>& Board::getIndexToCoord() const {
     return *indexToCoord;
 }
-
 const int& Board::getNumPlayerOnePieces() const {
     return numPlayerOnePieces;
 }
-
 const int& Board::getNumPlayerTwoPieces() const {
     return numPlayerTwoPieces;
 }
 
-// --------------------------------------------------------------------------------
-// Board Setup: placePieces
-// --------------------------------------------------------------------------------
 void Board::placePieces(const std::vector<std::string>& pieces)
 {
     numPlayerOnePieces = 0;
     numPlayerTwoPieces = 0;
-
     for (const std::string& p : pieces) {
         int row = 'I' - p[0];
         int col = p[1] - '1';
         char colour = p[2];
-
         if (validPosition(row, col)) {
-            gameboard[row][col] = playerColourMap.at(colour);
-            if (playerColourMap.at(colour) == 1) {
-                numPlayerOnePieces++;
-            } else {
-                numPlayerTwoPieces++;
-            }
-        } else {
-            std::cerr << "Error placing piece: " << p << std::endl;
+            int player = playerColourMap.at(colour);
+            gameboard[row][col] = player;
+            if (player == 1) ++numPlayerOnePieces;
+            else ++numPlayerTwoPieces;
         }
     }
 }
 
-// --------------------------------------------------------------------------------
-// Mutation Functions: applyMove, makeMove, unmakeMove, recordCellChange, etc.
-// --------------------------------------------------------------------------------
 void Board::applyMove(const Move& move)
 {
     MoveUndo dummyUndo;
@@ -155,15 +124,9 @@ void Board::makeMove(const Move& move, MoveUndo& undo)
     undo.oldNumPlayerOne = numPlayerOnePieces;
     undo.oldNumPlayerTwo = numPlayerTwoPieces;
 
-    if (move.size == 1) {
-        moveOnePiece(move, undo);
-    }
-    else if (move.type == MoveType::INLINE) {
-        movePiecesInline(move, undo);
-    }
-    else if (move.type == MoveType::SIDESTEP) {
-        movePiecesSideStep(move, undo);
-    }
+    if (move.size == 1) moveOnePiece(move, undo);
+    else if (move.type == MoveType::INLINE) movePiecesInline(move, undo);
+    else if (move.type == MoveType::SIDESTEP) movePiecesSideStep(move, undo);
 
     undo.newNumPlayerOne = numPlayerOnePieces;
     undo.newNumPlayerTwo = numPlayerTwoPieces;
@@ -182,29 +145,23 @@ void Board::unmakeMove(const MoveUndo& undo)
 
 void Board::recordCellChange(int row, int col, int oldVal, int newVal, MoveUndo& undo)
 {
-    MoveUndo::CellChange cc;
-    cc.row = row;
-    cc.col = col;
-    cc.oldVal = oldVal;
-    cc.newVal = newVal;
-    undo.changes.push_back(cc);
+    if (oldVal != newVal) {
+        undo.changes.push_back({row, col, oldVal, newVal});
+    }
 }
 
-// --------------------------------------------------------------------------------
-// Sub-helpers for Moves (moveOnePiece, movePiecesInline, movePiecesSideStep)
-// --------------------------------------------------------------------------------
 void Board::moveOnePiece(const Move& move, MoveUndo& undo)
 {
     int oldR = move.positions[0].first;
     int oldC = move.positions[0].second;
     int currPlayer = gameboard[oldR][oldC];
-
     auto [dx, dy] = DirectionHelper::getDelta(move.direction);
     int newR = oldR + dx;
     int newC = oldC + dy;
 
+    int target = gameboard[newR][newC];
     recordCellChange(oldR, oldC, currPlayer, 0, undo);
-    recordCellChange(newR, newC, gameboard[newR][newC], currPlayer, undo);
+    recordCellChange(newR, newC, target, currPlayer, undo);
 
     gameboard[oldR][oldC] = 0;
     gameboard[newR][newC] = currPlayer;
@@ -217,7 +174,7 @@ void Board::movePiecesInline(const Move& move, MoveUndo& undo)
     int leadR = move.getPosition(0).first;
     int leadC = move.getPosition(0).second;
     int currPlayer = gameboard[leadR][leadC];
-    int oppPlayer = (currPlayer == 1) ? 2 : 1;
+    int oppPlayer = 3 - currPlayer;
 
     int maxPush = (numFriendly == 2) ? 1 : 2;
     std::vector<std::pair<int, int>> oppPositions;
@@ -225,15 +182,13 @@ void Board::movePiecesInline(const Move& move, MoveUndo& undo)
     for (int i = 1; i <= maxPush; i++) {
         int oppR = leadR + dx * i;
         int oppC = leadC + dy * i;
-        if (!validPosition(oppR, oppC))
-            break;
+        if (!validPosition(oppR, oppC)) break;
         if (gameboard[oppR][oppC] == oppPlayer) {
             oppPositions.push_back({oppR, oppC});
             oppCount++;
-        } else {
-            break;
-        }
+        } else break;
     }
+
     int actualPushCount = (oppCount > 0 && numFriendly > oppCount) ? std::min(oppCount, maxPush) : 0;
     for (int i = actualPushCount - 1; i >= 0; i--) {
         int oppR = oppPositions[i].first;
@@ -243,10 +198,7 @@ void Board::movePiecesInline(const Move& move, MoveUndo& undo)
         if (!validPosition(newR, newC)) {
             recordCellChange(oppR, oppC, oppPlayer, 0, undo);
             gameboard[oppR][oppC] = 0;
-            if (oppPlayer == 1)
-                numPlayerOnePieces--;
-            else
-                numPlayerTwoPieces--;
+            (oppPlayer == 1 ? numPlayerOnePieces : numPlayerTwoPieces)--;
         } else {
             recordCellChange(oppR, oppC, oppPlayer, 0, undo);
             recordCellChange(newR, newC, gameboard[newR][newC], oppPlayer, undo);
@@ -255,63 +207,36 @@ void Board::movePiecesInline(const Move& move, MoveUndo& undo)
         }
     }
 
-    std::vector<std::pair<std::pair<int,int>, std::pair<int,int>>> friendlyMoves;
     for (int i = 0; i < numFriendly; i++) {
         int r = move.getPosition(i).first;
         int c = move.getPosition(i).second;
         int newR = r + dx;
         int newC = c + dy;
-        friendlyMoves.push_back({{r, c}, {newR, newC}});
-    }
-    for (auto &m : friendlyMoves) {
-        auto &src = m.first;
-        auto &dst = m.second;
-        recordCellChange(src.first, src.second, currPlayer, 0, undo);
-        recordCellChange(dst.first, dst.second, gameboard[dst.first][dst.second], currPlayer, undo);
-    }
-    for (auto &m : friendlyMoves) {
-        auto &src = m.first;
-        auto &dst = m.second;
-        gameboard[dst.first][dst.second] = currPlayer;
-        gameboard[src.first][src.second] = 0;
+        recordCellChange(r, c, currPlayer, 0, undo);
+        recordCellChange(newR, newC, gameboard[newR][newC], currPlayer, undo);
+        gameboard[newR][newC] = currPlayer;
+        gameboard[r][c] = 0;
     }
 }
 
 void Board::movePiecesSideStep(const Move& move, MoveUndo& undo)
 {
     auto [dx, dy] = DirectionHelper::getDelta(move.direction);
-    
-    std::vector<std::pair<std::pair<int,int>, std::pair<int,int>>> moves;
     for (int i = 0; i < move.size; i++) {
         int r = move.getPosition(i).first;
         int c = move.getPosition(i).second;
         int newR = r + dx;
         int newC = c + dy;
-        moves.push_back({{r, c}, {newR, newC}});
-    }
-    for (auto &m : moves) {
-        auto &src = m.first;
-        auto &dst = m.second;
-        int val = gameboard[src.first][src.second];
-        recordCellChange(src.first, src.second, val, 0, undo);
-        recordCellChange(dst.first, dst.second, gameboard[dst.first][dst.second], val, undo);
-    }
-    for (auto &m : moves) {
-        auto &src = m.first;
-        auto &dst = m.second;
-        gameboard[dst.first][dst.second] = gameboard[src.first][src.second];
-        gameboard[src.first][src.second] = 0;
+        int val = gameboard[r][c];
+        recordCellChange(r, c, val, 0, undo);
+        recordCellChange(newR, newC, gameboard[newR][newC], val, undo);
+        gameboard[newR][newC] = val;
+        gameboard[r][c] = 0;
     }
 }
 
-// --------------------------------------------------------------------------------
-// Validation and Zobrist Hashing
-// --------------------------------------------------------------------------------
-bool Board::validPosition(int row, int col) const
-{
-    return (row >= 0 && row < ROWS) 
-        && (col >= 0 && col < COLS)
-        && (gameboard[row][col] >= 0);
+bool Board::validPosition(int row, int col) const {
+    return (row >= 0 && row < ROWS) && (col >= 0 && col < COLS) && (gameboard[row][col] >= 0);
 }
 
 bool Board::zobristInitialized = false;
@@ -320,7 +245,6 @@ std::array<std::array<std::array<uint64_t, 3>, COLS>, ROWS> Board::zobristTable;
 void Board::initZobrist() {
     std::mt19937_64 rng(std::chrono::steady_clock::now().time_since_epoch().count());
     std::uniform_int_distribution<uint64_t> dist;
-
     for (int i = 0; i < ROWS; ++i) {
         for (int j = 0; j < COLS; ++j) {
             for (int p = 0; p < 3; ++p) {
@@ -332,17 +256,12 @@ void Board::initZobrist() {
 }
 
 uint64_t Board::getZobristHash() const {
-    if (!zobristInitialized) {
-        initZobrist();
-    }
-
+    if (!zobristInitialized) initZobrist();
     uint64_t hash = 0;
     for (int i = 0; i < ROWS; ++i) {
         for (int j = 0; j < COLS; ++j) {
             int piece = gameboard[i][j];
-            if (piece >= 0) {
-                hash ^= zobristTable[i][j][piece];
-            }
+            if (piece >= 0) hash ^= zobristTable[i][j][piece];
         }
     }
     return hash;
@@ -355,6 +274,7 @@ bool Board::operator==(const Board& other) const {
 bool Board::operator<(const Board& other) const {
     return gameboard < other.gameboard;
 }
+
 
 // --------------------------------------------------------------------------------
 // Printing Functions
